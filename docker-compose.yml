@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: pql-brightsmile-container
+    restart: always
+    environment:
+      POSTGRES_DB: pql-brightsmile-db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - '5432:5432'
+    volumes:
+      - pg-brightsmile-v:/var/lib/postgresql/data
+
+volumes:
+  pg-brightsmile-v: 
