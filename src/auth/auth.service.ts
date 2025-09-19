@@ -3,7 +3,6 @@ import {
     forwardRef,
     Inject,
     Injectable,
-    InternalServerErrorException,
 } from '@nestjs/common';
 import { UserRegisterDto } from './dto/UserRegisterDto';
 import { UserService } from 'src/user/user.service';
@@ -12,13 +11,19 @@ import * as bcrypt from 'bcrypt';
 import { UserLoginDto } from './dto/UserLoginDto';
 import { changePasswordDto } from './dto/ChangePasswordDto';
 import { loginResponseType } from 'src/common/types/auth.types';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from 'src/user/entity/user.entity';
+import { Repository } from 'typeorm';
+import { UserRole } from 'src/common/enums/auth-roles.enum';
+import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 
 @Injectable()
 export class AuthService {
     constructor(
         @Inject(forwardRef(() => UserService))
         private userService: UserService,
-        private jwt: JwtService
+        private jwt: JwtService,
+        @InjectRepository(User) private usersRepository: Repository<User>,
     ) { }
 
     async register(user: UserRegisterDto) {
@@ -27,6 +32,58 @@ export class AuthService {
         }
         return await this.userService.register(user);
     }
+
+    async googleLogin(googleUser: any) {
+        if (!googleUser) {
+            return { message: 'No user from Google' };
+        }
+
+        // Check if user already exists by googleId
+        let user = await this.usersRepository.findOne({
+            where: { googleId: googleUser.googleId },
+        });
+
+        if (!user) {
+            // Check if a user exists with the same email (maybe they signed up with email/password before)
+            user = await this.usersRepository.findOne({
+                where: { email: googleUser.email },
+            });
+
+            if (user) {
+                // Link Google account
+                user.googleId = googleUser.googleId;
+                user.isVerified = true;
+                await this.usersRepository.save(user);
+            } else {
+                // Create a new user
+                user = this.usersRepository.create({
+                    email: googleUser.email,
+                    name: `${googleUser.firstName} ${googleUser.lastName}`,
+                    googleId: googleUser.googleId,
+                    isVerified: true,
+                    password: null, // No password for OAuth users
+                    authProvider: AuthProvider.GOOGLE,
+                    accessTokens: [],
+                    role: UserRole.USER, // default role
+                });
+                await this.usersRepository.save(user);
+            }
+        }
+
+        // Generate JWT using your existing genTokens method
+        const { accessToken } = await this.genTokens(user.id, user.email, user.role);
+
+        // Add token to user's accessTokens array
+        await this.userService.addAccessToken(user.email, accessToken);
+
+        return {
+            accessToken,
+            role: user.role,
+            authProvider: user.authProvider,
+            user: user
+        };
+    }
+
 
     async login(loginData: UserLoginDto): Promise<loginResponseType> {
         const { email, password } = loginData;

@@ -8,10 +8,29 @@ import { changePasswordDto } from './dto/ChangePasswordDto';
 import { VerifyOtpDto } from './dto/VerifyOtp.dto';
 import { userPayloadType } from 'src/common/types/auth.types';
 import { LogOutAllDto } from './dto/LogoutAll.Dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth(@Req() req) {
+    // Passport handles redirect
+  }
+
+  // Step 2: Handle callback
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() req) {
+    const response = await this.authService.googleLogin(req.user);
+    return {
+      success: true,
+      message: 'Google login successful',
+      data: response,
+    };
+  }
 
   /*
   Register new user

@@ -1,13 +1,13 @@
+// src/user/entity/user.entity.ts
 import {
     Entity,
     Column,
     PrimaryGeneratedColumn,
     CreateDateColumn,
     UpdateDateColumn,
-    OneToMany,
 } from 'typeorm';
-
 import { UserRole } from 'src/common/enums/auth-roles.enum';
+import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 
 @Entity('users')
 export class User {
@@ -40,6 +40,13 @@ export class User {
 
     @Column({ type: 'timestamptz', nullable: true })
     otpExpiry: Date | null;
+
+    // 👇 Add Google ID for OAuth users
+    @Column({ type: 'varchar', nullable: true, unique: true })
+    googleId: string | null;
+
+    @Column({type: 'enum', enum: AuthProvider, default: AuthProvider.LOCAL})
+    authProvider: AuthProvider;
 
     @Column({
         type: 'enum',

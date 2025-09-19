@@ -14,6 +14,7 @@ import { changePasswordDto } from 'src/auth/dto/ChangePasswordDto';
 import { AuthService } from 'src/auth/auth.service';
 import { MailService } from 'src/common/mail/mail.service';
 import { isProd } from 'src/common/utils/checkMode';
+import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 
 @Injectable()
 export class UserService {
@@ -118,6 +119,7 @@ export class UserService {
                 password: hashedPassword,
                 accessTokens: [],
                 otp,
+                authProvider: AuthProvider.LOCAL,
                 otpExpiry: new Date(Date.now() + 10 * 60000),
                 isVerified: false,
             });
@@ -143,6 +145,16 @@ export class UserService {
             return { tempToken: accessToken, message: 'Signup OTP sent successfully. Please check your email.' };
         });
     }
+
+    // src/user/user.service.ts
+    async findByGoogleId(googleId: string) {
+        return this.usersRepository.findOne({ where: { googleId } });
+    }
+
+    async save(user: Partial<User>) {
+        return this.usersRepository.save(user);
+    }
+
 
     async verifySignupOtp(email: string, otp: string) {
         const user = await this.usersRepository.findOne({ where: { email, isVerified: false } });
