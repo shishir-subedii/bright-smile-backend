@@ -1,6 +1,7 @@
 export type loginResponseType = {
     accessToken: string;
     role: string;
+    authProvider: string;
 }
 
 export type userPayloadType = {

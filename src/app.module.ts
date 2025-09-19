@@ -9,6 +9,10 @@ import { FileUploadModule } from './file-upload/file-upload.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { AppointmentModule } from './appointment/appointment.module';
+import { DoctorModule } from './doctor/doctor.module';
+import { PaymentModule } from './payment/payment.module';
+import { CoreModule } from './common/core/core.module';
 
 @Module({
   imports: [
@@ -26,11 +30,15 @@ import { APP_GUARD } from '@nestjs/core';
       }),
     }),
     DatabaseModule,
+    CoreModule,
     UsersModule,
     AuthModule,
     AppConfigModule,
     JwtmoduleModule,
     FileUploadModule,
+    AppointmentModule,
+    DoctorModule,
+    PaymentModule,
   ],
   providers: [
     {

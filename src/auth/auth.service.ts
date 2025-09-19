@@ -79,8 +79,7 @@ export class AuthService {
         return {
             accessToken,
             role: user.role,
-            authProvider: user.authProvider,
-            user: user
+            authProvider: user.authProvider
         };
     }
 
@@ -117,6 +116,7 @@ export class AuthService {
         return {
             accessToken,
             role: user.role,
+            authProvider: user.authProvider
         };
     }
 
