@@ -6,7 +6,7 @@ import { UserRole } from 'src/common/enums/auth-roles.enum';
 export async function SuperAdminSeeder(dataSource: DataSource) {
     const userRepository = dataSource.getRepository(User);
 
-    const existing = await userRepository.findOne({ where: { email: 'superadmin@default.com' } });
+    const existing = await userRepository.findOne({ where: { email: 'superadmin@brightsmile.com' } });
 
     if (!existing) {
         const hashedPassword = await bcrypt.hash('demodemo123', 10);
@@ -14,7 +14,7 @@ export async function SuperAdminSeeder(dataSource: DataSource) {
         await userRepository.save(
             userRepository.create({
                 name: 'Super Admin',
-                email: 'superadmin@default.com',
+                email: 'superadmin@brightsmile.com',
                 password: hashedPassword,
                 accessTokens: [],
                 role: UserRole.SUPERADMIN,

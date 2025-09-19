@@ -5,9 +5,11 @@ import {
     PrimaryGeneratedColumn,
     CreateDateColumn,
     UpdateDateColumn,
+    OneToMany,
 } from 'typeorm';
 import { UserRole } from 'src/common/enums/auth-roles.enum';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 @Entity('users')
 export class User {
@@ -47,6 +49,9 @@ export class User {
 
     @Column({type: 'enum', enum: AuthProvider, default: AuthProvider.LOCAL})
     authProvider: AuthProvider;
+
+    @OneToMany(() => Appointment, (appointment) => appointment.user, {nullable: true})
+    appointments: Appointment[] | null;
 
     @Column({
         type: 'enum',

@@ -13,7 +13,6 @@ import { JwtmoduleModule } from 'src/common/jwtmodule/jwtmodule.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
     forwardRef(() => UsersModule),
     JwtmoduleModule,
     PassportModule.register({ defaultStrategy: 'jwt' }), // registers passport
