@@ -19,10 +19,11 @@ export class JwtAuthGuard implements CanActivate {
     ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        const requiredRoles = this.reflector.get<string[]>(
-            'roles',
+        const requiredRoles = this.reflector.getAllAndOverride<string[]>('roles', [
             context.getHandler(),
-        );
+            context.getClass(),
+        ]);
+
 
         const req = context.switchToHttp().getRequest<Request>();
         const authHeader = req.headers.authorization;

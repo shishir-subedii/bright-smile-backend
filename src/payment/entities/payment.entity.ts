@@ -11,7 +11,7 @@ import { Appointment } from 'src/appointment/entities/appointment.entity';
 export enum PaymentMethod {
     ESEWA = 'ESEWA',
     STRIPE = 'STRIPE',
-    COD = 'COD',
+    CASH = 'CASH',
 }
 
 export enum PaymentStatus {
@@ -36,7 +36,7 @@ export class Payment {
     amount: number;
 
     @Column({ nullable: true })
-    transactionId: string; // from Stripe/eSewa, null for COD
+    transactionId: string; // from Stripe/eSewa, null for CASH
 
     @OneToOne(() => Appointment, (appointment) => appointment.payment, {
         onDelete: 'CASCADE',
