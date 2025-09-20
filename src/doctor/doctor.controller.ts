@@ -17,20 +17,21 @@ import { Roles } from 'src/common/auth/AuthRoles';
 import { UserRole } from 'src/common/enums/auth-roles.enum';
 import { JwtAuthGuard } from 'src/common/auth/AuthGuard';
 
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
-@Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+
 @ApiTags('Doctors')
 @Controller('doctors')
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) { }
 
   /*
-   Create doctor
+  Create doctor
   */
   @ApiOperation({ summary: 'Create a new doctor' })
   @ApiResponse({ status: 201, description: 'Doctor created successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   @Post()
   async create(@Body() createDoctorDto: CreateDoctorDto) {
     const doctor = await this.doctorService.create(createDoctorDto);
@@ -42,7 +43,7 @@ export class DoctorController {
   }
 
   /*
-   Get all doctors
+  Get all doctors
   */
   @ApiOperation({ summary: 'Get all doctors' })
   @ApiResponse({ status: 200, description: 'Doctors retrieved successfully' })
@@ -57,7 +58,7 @@ export class DoctorController {
   }
 
   /*
-   Get doctor by id
+  Get doctor by id
   */
   @ApiOperation({ summary: 'Get doctor by ID' })
   @ApiResponse({ status: 200, description: 'Doctor retrieved successfully' })
@@ -73,11 +74,14 @@ export class DoctorController {
   }
 
   /*
-   Update doctor
+  Update doctor
   */
   @ApiOperation({ summary: 'Update doctor by ID' })
   @ApiResponse({ status: 200, description: 'Doctor updated successfully' })
   @ApiBadRequestResponse({ description: 'Doctor not found or invalid input' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   @Patch(':id')
   async update(@Param('id') id: string, @Body() updateDoctorDto: UpdateDoctorDto) {
     const doctor = await this.doctorService.update(id, updateDoctorDto);
@@ -89,11 +93,14 @@ export class DoctorController {
   }
 
   /*
-   Delete doctor
+  Delete doctor
   */
   @ApiOperation({ summary: 'Delete doctor by ID' })
   @ApiResponse({ status: 200, description: 'Doctor deleted successfully' })
   @ApiBadRequestResponse({ description: 'Doctor not found' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   @Delete(':id')
   async remove(@Param('id') id: string) {
     await this.doctorService.remove(id);

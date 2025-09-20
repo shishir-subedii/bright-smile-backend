@@ -12,7 +12,7 @@ import * as express from 'express';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.enableCors({
-    origin: ['http://localhost:3000'], // your frontend
+    origin: ['http://127.0.0.1:5500', 'http://localhost:3000', 'https://brightsmile.vercel.app'], 
     credentials: true,
   })
 
@@ -24,6 +24,8 @@ async function bootstrap() {
     console.error = () => { };
     console.debug = () => { };
   }
+  app.use('/payments/stripe/webhook', express.raw({ type: 'application/json' }));
+
   // Global Pipes
   app.useGlobalPipes(
     new ValidationPipe({
@@ -35,12 +37,13 @@ async function bootstrap() {
 
   // serve static files from uploads
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+  
   // Global Interceptor
-
   app.useGlobalInterceptors(new ResponseInterceptor());
 
   // Global Error Handler
   app.useGlobalFilters(new GlobalExceptionFilter());
+
 
   //remove swagger in production
   if (!isProd()) {

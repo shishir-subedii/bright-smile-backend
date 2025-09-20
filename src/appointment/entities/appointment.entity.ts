@@ -11,8 +11,10 @@ import {
 import { User } from 'src/user/entity/user.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
 import { Payment, PaymentStatus, PaymentMethod } from 'src/payment/entities/payment.entity';
+import { APPOINTMENT_FEE } from 'src/common/constants/appointment-fee';
 
 export enum AppointmentStatus {
+    PENDING = 'PENDING',
     BOOKED = 'BOOKED',
     CANCELLED = 'CANCELLED',
     COMPLETED = 'COMPLETED',
@@ -58,7 +60,7 @@ export class Appointment {
     @Column({
         type: 'enum',
         enum: AppointmentStatus,
-        default: AppointmentStatus.BOOKED,
+        default: AppointmentStatus.PENDING,
     })
     status: AppointmentStatus;
 
@@ -70,9 +72,17 @@ export class Appointment {
     paymentStatus: PaymentStatus;
 
     @Column({
+        type: 'decimal',
+        precision: 10,
+        scale: 2,
+        default: APPOINTMENT_FEE
+    })
+    price: number;
+
+    @Column({
         type: 'enum',
         enum: PaymentMethod,
-        default: PaymentMethod.COD,
+        default: PaymentMethod.CASH,
     })
     paymentMethod: PaymentMethod;
 
