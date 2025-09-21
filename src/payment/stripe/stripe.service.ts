@@ -72,7 +72,7 @@ export class StripeService {
             },
         });
         if(session.url){
-            payment.stripeCheckoutUrl = session.url;
+            payment.checkoutUrl = session.url;
             await this.paymentRepo.save(payment);
         }
         return session;
@@ -97,7 +97,7 @@ export class StripeService {
                     payment.status = PaymentStatus.PAID;
                     payment.transactionId = session.payment_intent!.toString();
                     payment.sessionId = session.id;
-                    payment.stripeCheckoutUrl = null;
+                    payment.checkoutUrl = null;
                     await this.paymentRepo.save(payment);
 
                     const appointment = payment.appointment;

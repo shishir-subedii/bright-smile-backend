@@ -31,7 +31,7 @@ export class StripeController {
         return {
             success: true,
             message: 'Stripe checkout session created',
-            data: { url: session.url },
+            data: { paymentUrl: session.url },
         };
     }
 

@@ -25,6 +25,7 @@ export class AppointmentService {
     private paymentRepo: Repository<Payment>,
   ) { }
 
+  //TODO: Add transaction management here and don't let one user book more than 3 times in a day
   // Create appointment
   async create(userId: string, dto: CreateAppointmentDto): Promise<Appointment> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
@@ -111,4 +112,46 @@ export class AppointmentService {
     };
   }
 
+  //for user
+  async getAppointmentById(userId: string, appointmentId: string): Promise<Appointment> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId, user: { id: userId } },
+      relations: ['payment', 'doctor', 'user'],
+    });
+    if (!appointment) throw new NotFoundException('Appointment not found');
+    return appointment;
+  }
+
+  //for admins and superadmin
+  async getAllAppointments(
+    page = 1,
+    limit = 10
+  ): Promise<{ data: Appointment[]; total: number; page: number; limit: number }> {
+    // Calculate offset
+    const skip = (page - 1) * limit;
+    // Fetch appointments with pagination and sorting
+    const [appointments, total] = await this.appointmentRepo.findAndCount({
+      relations: ['payment', 'doctor', 'user'],
+      order: { createdAt: 'DESC' }, // latest first
+      skip,
+      take: limit,
+    });
+    return {
+      data: appointments,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  //findone by id for admin
+  async getAppointmentByIdAdmin(appointmentId: string): Promise<Appointment> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+      relations: ['payment', 'doctor', 'user'],
+    });
+    if (!appointment) throw new NotFoundException('Appointment not found');
+    return appointment;
+  }
+  
 }
