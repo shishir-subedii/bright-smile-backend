@@ -4,6 +4,10 @@ import { ApiOperation, ApiResponse, ApiBearerAuth, ApiBadRequestResponse, ApiTag
 import { JwtAuthGuard } from 'src/common/auth/AuthGuard';
 import { Request } from 'express';
 import { userPayloadType } from 'src/common/types/auth.types';
+import { Roles } from 'src/common/auth/AuthRoles';
+import { UserRole } from 'src/common/enums/auth-roles.enum';
+import { Pagination, PaginationParams } from 'src/common/pagination/pagination.decorator';
+import { paginateResponse } from 'src/common/pagination/pagination.helper';
 
 @ApiTags('Users')
 @Controller('user')
@@ -32,6 +36,29 @@ export class UserController {
             success: true,
             message: 'User profile retrieved successfully',
             data: userProfile,
+        };
+    }
+
+    //get all users
+    @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+    @ApiOperation({ summary: 'Get all users (Admin only)' })
+    @ApiResponse({
+        status: 200,
+        description: 'Users retrieved successfully',
+    })
+    @ApiBearerAuth()
+    @ApiBadRequestResponse({
+        description: 'No users found',
+    })
+    @Get('all')
+    async getAllUsers(@Pagination() pagination: PaginationParams, @Req() req: Request) {
+        const result = await this.userService.getAllUsers(pagination.page, pagination.limit);
+        const { users, total } = result;
+        const paginatedData = paginateResponse(users, total, pagination.page, pagination.limit, req);
+        return {
+            success: true,
+            message: 'Users retrieved successfully',
+            data: paginatedData,
         };
     }
 }

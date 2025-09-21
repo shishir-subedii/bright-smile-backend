@@ -168,4 +168,10 @@ export class AuthService {
         }
         return updatedUser;
     }
+
+    //assign admin
+    async assignAdmin(email: string) {
+        return await this.userService.assignAdmin(email);
+    }
+    
 }

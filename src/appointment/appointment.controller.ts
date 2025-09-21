@@ -7,6 +7,8 @@ import {
   Req,
   UseGuards,
   Get,
+  Query,
+  Patch,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AppointmentService } from './appointment.service';
@@ -17,6 +19,7 @@ import { Pagination, PaginationParams } from 'src/common/pagination/pagination.d
 import { paginateResponse } from 'src/common/pagination/pagination.helper';
 import { Roles } from 'src/common/auth/AuthRoles';
 import { UserRole } from 'src/common/enums/auth-roles.enum';
+import { AppointmentStatus } from './entities/appointment.entity';
 
 @ApiTags('Appointments')
 @Controller('appointments')
@@ -102,6 +105,102 @@ export class AppointmentController {
       data: appointment,
     };
   }
-  
 
+  //mark appointment as completed
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @Patch('complete/:id')
+  @ApiOperation({ summary: 'Mark appointment as completed (Admin only)' })
+
+  @ApiParam({ name: 'id', description: 'Appointment ID' })
+  async markAsCompleted(@Param('id') id: string, @Req() req) {
+    const appointment = await this.appointmentService.markAsCompleted(id);
+    return {
+      success: true,
+      message: 'Appointment marked as completed successfully',
+      data: appointment,
+    };
+  }
+  
+  //mark appointment as cancelled
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @Patch('cancel/:id')
+  @ApiOperation({ summary: 'Mark appointment as cancelled (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Appointment ID' })
+
+  async markAsCancelled(@Param('id') id: string, @Req() req) {
+    const appointment = await this.appointmentService.cancelAppointment(id);
+    return {
+      success: true,
+      message: 'Appointment marked as cancelled successfully',
+      data: appointment,
+    };
+  }
+
+  //find appointments for a specific doctor with pagination
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @Get('doctor/:doctorId')
+  @ApiOperation({ summary: 'Get appointments for a specific doctor (Admin only)' })
+  @ApiParam({ name: 'doctorId', description: 'Doctor ID' })
+  @ApiQuery({ name: 'date', required: false, type: String, example: '2023-10-15', description: 'Filter by date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  async getAppointmentsForDoctor(
+    @Param('doctorId') doctorId: string,
+    @Query('date') date: string,
+    @Pagination() pagination: PaginationParams,
+    @Req() req,
+  ) {
+    const result = await this.appointmentService.getAppointmentsForDoctor(doctorId, date, pagination.page, pagination.limit);
+    const { appointments, total } = result;
+    const paginatedData = paginateResponse(appointments, total, pagination.page, pagination.limit, req);
+    return {
+      success: true,
+      message: 'Appointments for doctor fetched successfully',
+      data: paginatedData,
+    };
+  }
+
+
+  //find specific types of appointments(eg cancelled, booked, etc) with pagination
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @Get('status/:status')
+  @ApiOperation({ summary: 'Get appointments by status (Admin only)' })
+  @ApiParam({ name: 'status', description: 'Appointment Status', enum: AppointmentStatus })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  async getAppointmentsByStatus(
+    @Param('status') status: AppointmentStatus,
+    @Pagination() pagination: PaginationParams,
+    @Req() req,
+  ) {
+    const result = await this.appointmentService.getAppointmentsByStatus(status, pagination.page, pagination.limit);
+    const { appointments, total } = result;
+    const paginatedData = paginateResponse(appointments, total, pagination.page, pagination.limit, req);
+    return {
+      success: true,
+      message: `Appointments with status ${status} fetched successfully`,
+      data: paginatedData,
+    };
+  }
+
+
+  //find today's appointments with pagination
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @Get('today')
+  @ApiOperation({ summary: "Get today's appointments (Admin only)" })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  async getTodaysAppointments(
+    @Pagination() pagination: PaginationParams,
+    @Req() req,
+  ) {
+    const result = await this.appointmentService.getTodaysAppointments(pagination.page, pagination.limit);
+    const { appointments, total } = result;
+    const paginatedData = paginateResponse(appointments, total, pagination.page, pagination.limit, req);
+    return {
+      success: true,
+      message: "Today's appointments fetched successfully",
+      data: paginatedData,
+    };
+  }
 }

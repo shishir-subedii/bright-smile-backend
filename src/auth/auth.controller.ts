@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiOperation, ApiResponse, ApiBadRequestResponse, ApiBody, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRegisterDto } from './dto/UserRegisterDto';
@@ -9,6 +9,8 @@ import { VerifyOtpDto } from './dto/VerifyOtp.dto';
 import { userPayloadType } from 'src/common/types/auth.types';
 import { LogOutAllDto } from './dto/LogoutAll.Dto';
 import { AuthGuard } from '@nestjs/passport';
+import { Roles } from 'src/common/auth/AuthRoles';
+import { UserRole } from 'src/common/enums/auth-roles.enum';
 
 @Controller('auth')
 export class AuthController {
@@ -183,7 +185,7 @@ export class AuthController {
   @ApiBadRequestResponse({
     description: 'Old password is incorrect',
   })
-  @Post('change-password')
+  @Patch('change-password')
   @UseGuards(JwtAuthGuard)
   async changePassword(@Req() req: Request, @Body() body: changePasswordDto) {
     const user = req['user'] as userPayloadType;
@@ -194,6 +196,22 @@ export class AuthController {
       data: updatedUser,
     };
   }
+
+  //assign admin
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.SUPERADMIN)
+  @Patch('assign-admin/:email')
+  @ApiOperation({ summary: 'Assign admin role to a user (Superadmin only)' })
+  @ApiParam({ name: 'email', description: 'User email to be assigned as admin' })
+  async assignAdmin(@Param('email') email: string) {
+    const updatedUser = await this.authService.assignAdmin(email);
+    return {
+      success: true,
+      message: 'User assigned as admin successfully',
+      data: updatedUser,
+    };
+  }
+
 
 }
 
