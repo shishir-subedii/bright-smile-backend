@@ -29,7 +29,7 @@ export class CreateAppointmentDto {
   @IsString()
   phoneNumber: string;
 
-  @ApiProperty({ example: 'uuid-of-doctor' })
+  @ApiProperty({ example: '81851f67-41f1-4213-bda4-5d8755c1c381' })
   @IsString()
   doctorId: string;
 }
