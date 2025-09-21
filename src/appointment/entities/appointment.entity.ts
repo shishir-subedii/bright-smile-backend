@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { User } from 'src/user/entity/user.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
-import { Payment, PaymentStatus, PaymentMethod } from 'src/payment/entities/payment.entity';
+import { Payment, PaymentStatus, PaymentMethod, Currency } from 'src/payment/entities/payment.entity';
 import { APPOINTMENT_FEE } from 'src/common/constants/appointment-fee';
 
 export enum AppointmentStatus {
@@ -63,6 +63,13 @@ export class Appointment {
         default: AppointmentStatus.PENDING,
     })
     status: AppointmentStatus;
+
+    @Column({
+        type: 'enum',
+        enum: Currency,
+        default: Currency.USD,
+    })
+    currency: Currency;
 
     @Column({
         type: 'enum',

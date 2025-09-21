@@ -19,7 +19,6 @@ import { StripeService } from './stripe.service';
 import Stripe from 'stripe';
 import { ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
-import { Observable } from 'rxjs';
 
 @ApiTags('Stripe Payments')
 @Controller('payments/stripe')
@@ -69,7 +68,7 @@ export class StripeController {
     // src/payment/stripe/stripe.controller.ts
     @Get('success')
     async successPage(@Query('session_id') sessionId: string) {
-        const result = await this.stripeService.getSessionStatus(sessionId);
+        const result = await this.stripeService.getStripeSuccess(sessionId);
         return {
             success: true,
             message: 'Payment successful.',
@@ -88,7 +87,7 @@ export class StripeController {
     //Check payment status
     @Get('status/:sessionId')
     async getStatus(@Param('sessionId') sessionId: string) {
-        const result = await this.stripeService.getSessionStatus(sessionId);
+        const result = await this.stripeService.getStripeSuccess(sessionId);
         return {
             success: true,
             message: 'Fetched payment status successfully',

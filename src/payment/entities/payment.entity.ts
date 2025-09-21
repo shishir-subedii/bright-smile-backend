@@ -21,6 +21,11 @@ export enum PaymentStatus {
     REFUNDED = 'REFUNDED',
 }
 
+export enum Currency{
+    USD = 'USD',
+    NPR = 'NPR',
+}
+
 @Entity('payments')
 export class Payment {
     @PrimaryGeneratedColumn('uuid')
@@ -35,13 +40,22 @@ export class Payment {
     @Column({ type: 'decimal', precision: 10, scale: 2 })
     amount: number;
 
-    @Column({ nullable: true })
-    transactionId: string; // from Stripe/eSewa, null for CASH
+    @Column({ type: 'varchar', nullable: true })
+    transactionId: string | null; // from Stripe/eSewa, null for CASH
+
+    @Column({ type: 'varchar', nullable: true })
+    sessionId: string | null; // Stripe session ID or eSewa reference ID, null for CASH
+
+    @Column({ type: 'varchar', nullable: true })
+    stripeCheckoutUrl: string | null; // for redirecting to Stripe checkout, null for others
 
     @OneToOne(() => Appointment, (appointment) => appointment.payment, {
         onDelete: 'CASCADE',
     })
     appointment: Appointment;
+
+    @Column({ type: 'enum', enum: Currency, default: Currency.USD })
+    currency: Currency;
 
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;

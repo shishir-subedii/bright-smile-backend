@@ -71,7 +71,10 @@ export class StripeService {
                 paymentId: payment.id,
             },
         });
-
+        if(session.url){
+            payment.stripeCheckoutUrl = session.url;
+            await this.paymentRepo.save(payment);
+        }
         return session;
     }
 
@@ -94,6 +97,8 @@ export class StripeService {
                 if (payment) {
                     payment.status = PaymentStatus.PAID;
                     payment.transactionId = session.payment_intent!.toString();
+                    payment.sessionId = session.id;
+                    payment.stripeCheckoutUrl = null;
                     await this.paymentRepo.save(payment);
 
                     const appointment = payment.appointment;
@@ -106,7 +111,7 @@ export class StripeService {
         }
     }
 
-    async getSessionStatus(sessionId: string) {
+    async getStripeSuccess(sessionId: string) {
         const session = await this.stripe.checkout.sessions.retrieve(sessionId, {
             expand: ['payment_intent'],
         });
@@ -122,4 +127,12 @@ export class StripeService {
         }
     }
 
+    async getSessionStatus(sessionId: string){
+        const session = await this.stripe.checkout.sessions.retrieve(sessionId);
+        if (!session) {
+            throw new BadRequestException('Session not found in Stripe');
+        }
+        return session;
+    }
 }
+
