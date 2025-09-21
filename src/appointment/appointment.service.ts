@@ -8,6 +8,7 @@ import { User } from 'src/user/entity/user.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
 import { Currency, Payment, PaymentMethod, PaymentStatus } from 'src/payment/entities/payment.entity';
 import { APPOINTMENT_FEE, APPOINTMENT_FEE_NPR } from 'src/common/constants/appointment-fee';
+import { UserRole } from 'src/common/enums/auth-roles.enum';
 
 @Injectable()
 export class AppointmentService {
@@ -153,5 +154,66 @@ export class AppointmentService {
     if (!appointment) throw new NotFoundException('Appointment not found');
     return appointment;
   }
-  
+
+  //mark appointment as completed
+  async markAsCompleted(appointmentId: string): Promise<Appointment> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+      relations: ['payment', 'doctor', 'user'],
+    });
+    if (!appointment) throw new NotFoundException('Appointment not found');
+    appointment.status = AppointmentStatus.COMPLETED;
+    return await this.appointmentRepo.save(appointment);
+  }
+
+  //cancel appointment
+  async cancelAppointment(appointmentId: string): Promise<Appointment> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+      relations: ['payment', 'doctor', 'user'],
+    });
+    if (!appointment) throw new NotFoundException('Appointment not found');
+    appointment.status = AppointmentStatus.CANCELLED;
+    return await this.appointmentRepo.save(appointment);
+  }
+
+  //find specific appointment for a doctor with pagination
+  async getAppointmentsForDoctor(doctorId: string, date: string, page: number=1, limit: number=10): Promise<{ appointments: Appointment[]; total: number, page: number, limit: number }> {
+    const [appointments, total] = await this.appointmentRepo.findAndCount({
+      where: { doctor: { id: doctorId }, date, status: AppointmentStatus.BOOKED },
+      relations: ['user', 'payment'],
+      //latest first
+      order: { date: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { appointments, total, page, limit };
+  }
+
+  //find specific types of appointments(eg cancelled, booked, etc) with pagination
+  async getAppointmentsByStatus(status: AppointmentStatus, page: number=1, limit: number=10): Promise<{ appointments: Appointment[]; total: number; page: number; limit: number }> {
+    const [appointments, total] = await this.appointmentRepo.findAndCount({
+      where: { status },
+      relations: ['user', 'doctor', 'payment'],
+      order: { date: 'DESC', time: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { appointments, total, page, limit };
+  }
+
+  //find today's appointments with pagination
+  async getTodaysAppointments(page: number=1, limit: number=10): Promise<{ appointments: Appointment[]; total: number; page: number; limit: number }> {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    const [appointments, total] = await this.appointmentRepo.findAndCount({
+      where: { date: dateStr, status: AppointmentStatus.BOOKED },
+      relations: ['user', 'doctor', 'payment'],
+      order: { time: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { appointments, total, page, limit };
+  }
 }
+    

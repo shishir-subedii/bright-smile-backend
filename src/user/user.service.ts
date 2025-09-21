@@ -15,6 +15,7 @@ import { AuthService } from 'src/auth/auth.service';
 import { MailService } from 'src/common/mail/mail.service';
 import { isProd } from 'src/common/utils/checkMode';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
+import { UserRole } from 'src/common/enums/auth-roles.enum';
 
 @Injectable()
 export class UserService {
@@ -302,5 +303,26 @@ export class UserService {
         } catch (error) {
             throw new InternalServerErrorException('Failed to change password');
         }
+    }
+
+    //assign admin role to user
+    async assignAdmin(email: string) {
+        const user = await this.findOneByEmail(email);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+        user.role = UserRole.ADMIN;
+        return this.usersRepository.save(user);
+    }
+
+
+    //get all users with pagination
+    async getAllUsers(page: number = 1, limit: number = 10): Promise<{ users: User[]; total: number; page: number; limit: number }> {
+        const [users, total] = await this.usersRepository.findAndCount({
+            skip: (page - 1) * limit,
+            take: limit,
+            order: { createdAt: 'DESC' },
+        });
+        return { users, total, page, limit };
     }
 }
