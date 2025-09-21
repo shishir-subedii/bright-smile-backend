@@ -7,6 +7,7 @@ export async function DoctorSeeder(dataSource: DataSource) {
     // Example doctors to insert
     const doctors = [
         {
+            id: '81851f67-41f1-4213-bda4-5d8755c1c381',
             name: 'Dr. John Doe',
             specialization: 'Dentist',
             idType: IdType.LICENSE,

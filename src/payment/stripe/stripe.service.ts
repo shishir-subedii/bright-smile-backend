@@ -82,7 +82,6 @@ export class StripeService {
      * Handle webhook events
      */
     async handleWebhook(event: Stripe.Event) {
-        console.log('Stripe webhook event:', event.type);
         if (event.type === 'checkout.session.completed') {
             const session = event.data.object as Stripe.Checkout.Session;
             const appointmentId = session.metadata?.appointmentId;

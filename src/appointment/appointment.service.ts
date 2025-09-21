@@ -6,8 +6,8 @@ import { Appointment, AppointmentStatus } from './entities/appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { User } from 'src/user/entity/user.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
-import { Payment, PaymentMethod, PaymentStatus } from 'src/payment/entities/payment.entity';
-import { APPOINTMENT_FEE } from 'src/common/constants/appointment-fee';
+import { Currency, Payment, PaymentMethod, PaymentStatus } from 'src/payment/entities/payment.entity';
+import { APPOINTMENT_FEE, APPOINTMENT_FEE_NPR } from 'src/common/constants/appointment-fee';
 
 @Injectable()
 export class AppointmentService {
@@ -55,6 +55,22 @@ export class AppointmentService {
       const payment = this.paymentRepo.create({
         amount: APPOINTMENT_FEE,
         method: PaymentMethod.CASH,
+        status: PaymentStatus.PENDING,
+        appointment,
+      });
+      await this.paymentRepo.save(payment);
+      appointment.payment = payment;
+    }
+
+    if (dto.pay === PaymentMethod.ESEWA) {
+      appointment.paymentMethod = PaymentMethod.ESEWA;
+      appointment.paymentStatus = PaymentStatus.PENDING;
+      appointment.currency = Currency.NPR;
+      appointment.price = APPOINTMENT_FEE_NPR;
+      const payment = this.paymentRepo.create({
+        amount: APPOINTMENT_FEE_NPR,
+        currency: Currency.NPR,
+        method: PaymentMethod.ESEWA,
         status: PaymentStatus.PENDING,
         appointment,
       });

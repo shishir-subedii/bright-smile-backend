@@ -12,6 +12,7 @@ export enum PaymentMethod {
     ESEWA = 'ESEWA',
     STRIPE = 'STRIPE',
     CASH = 'CASH',
+    KHALTI = 'KHALTI',
 }
 
 export enum PaymentStatus {
