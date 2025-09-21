@@ -2,11 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Currency, Payment, PaymentMethod, PaymentStatus } from "../entities/payment.entity";
 import { Repository } from "typeorm";
-import { Appointment } from "src/appointment/entities/appointment.entity";
+import { Appointment, AppointmentStatus } from "src/appointment/entities/appointment.entity";
 import { APPOINTMENT_FEE_NPR } from "src/common/constants/appointment-fee";
 import { Response } from "express";
 import * as crypto from 'crypto'
-import axios from 'axios';
+import axios, { Axios, AxiosResponse } from 'axios';
 
 @Injectable()
 export class eSewaService {
@@ -17,6 +17,10 @@ export class eSewaService {
         @InjectRepository(Appointment)
         private readonly appointmentRepo: Repository<Appointment>
     ) { }
+
+    async generateUniqueId() {
+        return `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
 
     async generateHmacSha256Hash(data, secret) {
         if (!data || !secret) {
@@ -31,9 +35,9 @@ export class eSewaService {
 
         return hash;
     }
-    async initiatePayment(appointmentId: string) {
+    async initiatePayment(userId: string, appointmentId: string) {
         const appointment = await this.appointmentRepo.findOne({
-            where: { id: appointmentId },
+            where: { id: appointmentId, user: { id: userId } },
             relations: ['payment', 'user'],
         })
         if(!appointment) throw new Error('Appointment not found');
@@ -43,12 +47,15 @@ export class eSewaService {
         if(appointment.paymentMethod !== PaymentMethod.ESEWA || appointment.currency !== Currency.NPR){
             throw new Error('Appointment is not set for eSewa payment');
         }
+
+        const txn_uuid = await this.generateUniqueId();
         // create payment entity
         const payment = this.paymentRepo.create({
             amount: appointment.price,
             currency: appointment.currency,
             method: PaymentMethod.ESEWA,
             status: PaymentStatus.PENDING,
+            transactionId: txn_uuid,
             appointment,
         });
         await this.paymentRepo.save(payment);
@@ -64,7 +71,7 @@ export class eSewaService {
             success_url: process.env.ESEWA_SUCCESS_URL,
             tax_amount: "0",
             total_amount: String(APPOINTMENT_FEE_NPR),
-            transaction_uuid: appointmentId,
+            transaction_uuid: txn_uuid,
         };
         const data = `total_amount=${paymentData.amount},transaction_uuid=${paymentData.transaction_uuid},product_code=${paymentData.product_code}`;
         const signature = await this.generateHmacSha256Hash(data, process.env.ESEWA_SECRET_KEY);
@@ -72,9 +79,9 @@ export class eSewaService {
             url: process.env.ESEWA_PAYMENT_URL,
             data: { ...paymentData, signature },
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            responseHandler: (response) => response.request?.res?.responseUrl,
+            responseHandler: (response: AxiosResponse) => response.request?.res?.responseUrl,
         };
-        console.log('eSewa payment request data:', paymentConfig);
+        
         // Make payment request
         const paymentReq = await axios.post(String(paymentConfig.url), paymentConfig.data, {
             headers: paymentConfig.headers,
@@ -84,42 +91,106 @@ export class eSewaService {
         if (!paymentUrl) {
             throw new Error("Payment URL is missing in the response");
         }
+        payment.eSewaSignature = signature;
+        payment.checkoutUrl = paymentUrl;
         payment.sessionId = appointmentId; // using appointmentId as sessionId for tracking
         await this.paymentRepo.save(payment);
         return { paymentUrl };
     }
 
+    //BUG: if user pays with previous txn_uuid, it will not update the payment status but user still had paid. so it's long day.
     async verifyPayment(data: string) {
-        console.log('Raw data from eSewa:', data);
-
-        // 1. decode base64 → utf8 string
+        //decode base64 → utf8 string
         const decoded = Buffer.from(data, 'base64').toString('utf8');
-        console.log('Decoded eSewa data:', decoded);
 
-        // 2. parse JSON
+        //parse JSON
         const parsed = JSON.parse(decoded);
+        const { transaction_code, status, total_amount, transaction_uuid, signature } = parsed;
 
-        console.log('Decoded eSewa payload:', parsed);
-
-        // Example fields:
-        // {
-        //   "transaction_code": "000C2ELC",
-        //   "status": "COMPLETE",
-        //   "total_amount": "2400.0",
-        //   "transaction_uuid": "562bd5fc-3440-44c0-8bf8-51aceacf42db",
-        //   "product_code": "EPAYTEST",
-        //   "signed_field_names": "transaction_code,status,total_amount,...",
-        //   "signature": "zlvu6+r2/NvoRlT0gLgn/cGHZWmRcGTcWRjrtTYJRmE="
-        // }
-
-        return parsed;
+        //find payment by transaction_uuid
+        const payment = await this.paymentRepo.findOne({
+            where: { transactionId: transaction_uuid, method: PaymentMethod.ESEWA },
+            relations: ['appointment'],
+        });
+        if (!payment) {
+            throw new Error('Payment not found');
+        }
+        const appointment = payment.appointment;
+        if (!appointment) {
+            throw new Error('Associated appointment not found');
+        }
+        if (payment.status === PaymentStatus.PAID) {
+            throw new Error('Payment already verified');
+        }
+        if(appointment.status !== AppointmentStatus.PENDING){
+            throw new Error('Appointment is not in a valid state for payment verification');
+        }
+        //check status
+        if (status !== 'COMPLETE') {
+            payment.status = PaymentStatus.FAILED;
+            await this.paymentRepo.save(payment);
+            throw new Error('Payment failed at eSewa');
+        }
+        //check amount
+        if (Number(total_amount) !== Number(payment.amount)) {
+            payment.status = PaymentStatus.FAILED;
+            await this.paymentRepo.save(payment);
+            throw new Error('Payment amount mismatch');
+        }
+        //save data into payment entity
+        payment.status = PaymentStatus.PAID;
+        payment.eSewaSignature = signature;
+        payment.transactionCode = transaction_code;
+        await this.paymentRepo.save(payment);
+        //update appointment status
+        appointment.status = AppointmentStatus.BOOKED;
+        appointment.paymentStatus = PaymentStatus.PAID;
+        appointment.paymentMethod = PaymentMethod.ESEWA;
+        await this.appointmentRepo.save(appointment);
+        
+        return {
+            appointmentId: appointment.id,
+            paymentId: payment.id,
+            amount: payment.amount,
+            status: payment.status,
+            message: 'Payment verified successfully',
+        }
     }
 
+
+
     //check status of transaction
-    async statusCheck(pid: string, refId: string, amt: number) {
-        const url = `${process.env.ESEWA_TRANSACTION_URL}/?product_code=${pid}&total_amount=${amt}&transaction_uuid=${refId}`;
-        const response = await axios.get(url);
-        return response.data;
+    async checkPaymentStatus(userId: string, appointmentId: string) {
+        const appointment = await this.appointmentRepo.findOne({
+            where: { id: appointmentId, user: { id: userId } },
+            relations: ['payment'],
+        });
+        if (!appointment) {
+            throw new Error('Appointment not found');
+        }
+        if (appointment.paymentMethod !== PaymentMethod.ESEWA) {
+            throw new Error('Appointment is not set for eSewa payment');
+        }
+        const payment = appointment.payment;
+        if (!payment) {
+            throw new Error('Payment not found for this appointment');
+        }
+        if (payment.status === PaymentStatus.PAID) {
+            return {
+                appointmentId: appointment.id,
+                paymentId: payment.id,
+                amount: payment.amount,
+                status: payment.status,
+                message: 'Payment already completed',
+            };
+        }
+        //call eSewa transaction status API
+        
+
+
+        // const url = `${process.env.ESEWA_TRANSACTION_URL}/?product_code=${pid}&total_amount=${amt}&transaction_uuid=${refId}`;
+        // const response = await axios.get(url);
+        // return response.data;
     }
 
 }

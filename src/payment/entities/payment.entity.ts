@@ -11,12 +11,12 @@ import { Appointment } from 'src/appointment/entities/appointment.entity';
 export enum PaymentMethod {
     ESEWA = 'ESEWA',
     STRIPE = 'STRIPE',
-    CASH = 'CASH',
-    KHALTI = 'KHALTI',
+    CASH = 'CASH'
 }
 
 export enum PaymentStatus {
     PENDING = 'PENDING',
+    PROCESSING = 'PROCESSING',
     PAID = 'PAID',
     FAILED = 'FAILED',
     REFUNDED = 'REFUNDED',
@@ -48,7 +48,7 @@ export class Payment {
     sessionId: string | null; // Stripe session ID or eSewa reference ID, null for CASH
 
     @Column({ type: 'varchar', nullable: true })
-    stripeCheckoutUrl: string | null; // for redirecting to Stripe checkout, null for others
+    checkoutUrl: string | null; // for redirecting to Stripe checkout esewa checkout, null for others
 
     @OneToOne(() => Appointment, (appointment) => appointment.payment, {
         onDelete: 'CASCADE',
@@ -57,6 +57,18 @@ export class Payment {
 
     @Column({ type: 'enum', enum: Currency, default: Currency.USD })
     currency: Currency;
+
+    //esewa 
+
+    //list of txn id of esewa payments
+    @Column({ type: 'varchar', array: true, nullable: true })
+    eSewaTxnIds: string[] | null;
+
+    @Column({ type: 'varchar', nullable: true })
+    eSewaSignature: string | null; // eSewa signature for verification
+    
+    @Column({ type: 'varchar', nullable: true })
+    transactionCode: string | null; // eSewa signature for verification
 
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
