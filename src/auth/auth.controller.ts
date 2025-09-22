@@ -200,6 +200,7 @@ export class AuthController {
   //assign admin
   @UseGuards(JwtAuthGuard)
   @Roles(UserRole.SUPERADMIN)
+  @ApiBearerAuth()
   @Patch('assign-admin/:email')
   @ApiOperation({ summary: 'Assign admin role to a user (Superadmin only)' })
   @ApiParam({ name: 'email', description: 'User email to be assigned as admin' })

@@ -1,1 +1,1 @@
-It is a dental appointment booking system
+It is a dental appointment booking system. with payment integration like stripe, esewa.

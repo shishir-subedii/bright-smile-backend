@@ -11,7 +11,7 @@ import {
 import { User } from 'src/user/entity/user.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
 import { Payment, PaymentStatus, PaymentMethod, Currency } from 'src/payment/entities/payment.entity';
-import { APPOINTMENT_FEE } from 'src/common/constants/appointment';
+import { APPOINTMENT_FEE } from 'src/common/constants/constants';
 
 export enum AppointmentStatus {
     PENDING = 'PENDING',
