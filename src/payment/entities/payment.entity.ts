@@ -38,7 +38,7 @@ export class Payment {
     @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
     status: PaymentStatus;
 
-    @Column({ type: 'decimal', precision: 10, scale: 2 })
+    @Column({ type: 'int' })
     amount: number;
 
     @Column({ type: 'varchar', nullable: true })
@@ -57,12 +57,6 @@ export class Payment {
 
     @Column({ type: 'enum', enum: Currency, default: Currency.USD })
     currency: Currency;
-
-    //esewa 
-
-    //list of txn id of esewa payments
-    @Column({ type: 'varchar', array: true, nullable: true })
-    eSewaTxnIds: string[] | null;
 
     @Column({ type: 'varchar', nullable: true })
     eSewaSignature: string | null; // eSewa signature for verification

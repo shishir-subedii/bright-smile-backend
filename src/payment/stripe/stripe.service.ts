@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Appointment, AppointmentStatus } from 'src/appointment/entities/appointment.entity';
 import { Payment, PaymentMethod, PaymentStatus } from '../entities/payment.entity';
+import { AppointmentService } from 'src/appointment/appointment.service';
 
 @Injectable()
 export class StripeService {
@@ -14,6 +15,8 @@ export class StripeService {
         private readonly appointmentRepo: Repository<Appointment>,
         @InjectRepository(Payment)
         private readonly paymentRepo: Repository<Payment>,
+
+        private readonly appointmentService: AppointmentService
     ) {
         this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
             apiVersion: '2025-08-27.basil', // keep Stripe API version updated
@@ -105,6 +108,11 @@ export class StripeService {
                     appointment.status = AppointmentStatus.BOOKED;
                     appointment.paymentMethod = PaymentMethod.STRIPE;
                     await this.appointmentRepo.save(appointment);
+                    const findAppointment = await this.appointmentRepo.findOne({
+                        where: { id: appointment.id },
+                        relations: ['user', 'payment'],
+                    });
+                    await this.appointmentService.generateAndSendAppointmentConfirmation(findAppointment?.user.id!, appointment.id)
                 }
             }
         }

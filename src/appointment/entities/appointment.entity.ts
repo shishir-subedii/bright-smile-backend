@@ -57,6 +57,9 @@ export class Appointment {
     @Column({ type: 'varchar' })
     phoneNumber: string;
 
+    @Column({type: 'varchar', nullable: true})
+    fileUrl: string | null;
+
     @Column({
         type: 'enum',
         enum: AppointmentStatus,
@@ -78,12 +81,7 @@ export class Appointment {
     })
     paymentStatus: PaymentStatus;
 
-    @Column({
-        type: 'decimal',
-        precision: 10,
-        scale: 2,
-        default: APPOINTMENT_FEE
-    })
+    @Column({ type: 'int', default: APPOINTMENT_FEE})
     price: number;
 
     @Column({

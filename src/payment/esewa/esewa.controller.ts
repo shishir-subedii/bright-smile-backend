@@ -72,6 +72,8 @@ export class eSewaController {
     //temporary failure route for testing
     @Get('failure')
     async paymentFailure() {
+        // const res = await this.eSewaService.checkPaymentStatus('cc446ec9-15d9-475e-a389-e662c147775a', '55bfc54e-cd52-4bb8-bc40-325ac702a689')
+        // console.log(res)
         return {
             message: 'Payment failed',
             data: null,

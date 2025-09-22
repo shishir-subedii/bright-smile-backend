@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { SuperAdminSeeder } from './superadmin.seeder';
 import { DoctorSeeder } from './doctor.seeder';
 import { UserSeeder } from './user.seeder';
+import { AdminSeeder } from './admin.seeder';
 
 const AppDataSource = new DataSource({
     type: 'postgres',
@@ -22,6 +23,7 @@ async function main() {
         console.log('Connected to Postgres');
 
         await SuperAdminSeeder(AppDataSource);
+        await AdminSeeder(AppDataSource);
         await DoctorSeeder(AppDataSource);
         await UserSeeder(AppDataSource);
 

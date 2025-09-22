@@ -203,4 +203,18 @@ export class AppointmentController {
       data: paginatedData,
     };
   }
+
+  // //test endpoint to generate invoice
+  // @UseGuards(JwtAuthGuard)
+  // @ApiOperation({ summary: 'Generate appointment invoice (User only)' })
+  // @ApiParam({ name: 'id', description: 'Appointment ID' })
+  // @Get('test/invoice/:id')
+  // async generateInvoice(@Param('id') id: string, @Req() req) {
+  //   const invoicePath = await this.appointmentService.generateAppointmentConfirmation(req.user.id, id);
+  //   return {
+  //     success: true,
+  //     message: 'Invoice generated successfully',
+  //     data: { invoicePath },
+  //   };
+  // }
 }
