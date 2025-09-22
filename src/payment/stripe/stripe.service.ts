@@ -28,27 +28,32 @@ export class StripeService {
      */
     async createCheckoutSession(userId: string, appointmentId: string) {
         const appointment = await this.appointmentRepo.findOne({
-            where: { id: appointmentId, user: {id: userId} },
+            where: { id: appointmentId, user: { id: userId } },
             relations: ['payment', 'user'],
         });
 
         if (!appointment) throw new BadRequestException('Appointment not found');
         if (appointment.paymentStatus !== PaymentStatus.PENDING) {
-            throw new BadRequestException('Payment already processed');
+            throw new BadRequestException('Payment already processed or cancelled');
         }
 
-        if(appointment.paymentMethod !== PaymentMethod.STRIPE){
+        if (appointment.paymentMethod !== PaymentMethod.STRIPE) {
             throw new BadRequestException('Appointment is not set for Stripe payment');
         }
 
         // create payment entity
-        const payment = this.paymentRepo.create({
-            amount: appointment.price,
-            method: PaymentMethod.STRIPE,
-            status: PaymentStatus.PENDING,
-            appointment,
+        // const payment = this.paymentRepo.create({
+        //     amount: appointment.price,
+        //     method: PaymentMethod.STRIPE,
+        //     status: PaymentStatus.PENDING,
+        //     appointment,
+        // });
+        // await this.paymentRepo.save(payment);
+
+        const payment = await this.paymentRepo.findOne({
+            where: { appointment: { id: appointmentId } },
         });
-        await this.paymentRepo.save(payment);
+        if (!payment) throw new BadRequestException('Payment record not found');
 
         const session = await this.stripe.checkout.sessions.create({
             mode: 'payment',
@@ -74,13 +79,12 @@ export class StripeService {
                 paymentId: payment.id,
             },
         });
-        if(session.url){
+        if (session.url) {
             payment.checkoutUrl = session.url;
             await this.paymentRepo.save(payment);
         }
         return session;
     }
-
     /**
      * Handle webhook events
      */
@@ -97,26 +101,34 @@ export class StripeService {
                 });
 
                 if (payment) {
+                    // Update payment
                     payment.status = PaymentStatus.PAID;
                     payment.transactionId = session.payment_intent!.toString();
                     payment.sessionId = session.id;
                     payment.checkoutUrl = null;
                     await this.paymentRepo.save(payment);
 
+                    // Update appointment
                     const appointment = payment.appointment;
                     appointment.paymentStatus = PaymentStatus.PAID;
                     appointment.status = AppointmentStatus.BOOKED;
                     appointment.paymentMethod = PaymentMethod.STRIPE;
                     await this.appointmentRepo.save(appointment);
+
+                    // Send confirmation
                     const findAppointment = await this.appointmentRepo.findOne({
                         where: { id: appointment.id },
                         relations: ['user', 'payment'],
                     });
-                    await this.appointmentService.generateAndSendAppointmentConfirmation(findAppointment?.user.id!, appointment.id)
+                    await this.appointmentService.generateAndSendAppointmentConfirmation(
+                        findAppointment?.user.id!,
+                        appointment.id
+                    );
                 }
             }
         }
     }
+
 
     async getStripeSuccess(sessionId: string) {
         const session = await this.stripe.checkout.sessions.retrieve(sessionId, {
@@ -134,7 +146,7 @@ export class StripeService {
         }
     }
 
-    async getSessionStatus(sessionId: string){
+    async getSessionStatus(sessionId: string) {
         const session = await this.stripe.checkout.sessions.retrieve(sessionId);
         if (!session) {
             throw new BadRequestException('Session not found in Stripe');

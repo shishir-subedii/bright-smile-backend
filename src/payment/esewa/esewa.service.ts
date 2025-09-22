@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Currency, Payment, PaymentMethod, PaymentStatus } from "../entities/payment.entity";
 import { Repository } from "typeorm";
 import { Appointment, AppointmentStatus } from "src/appointment/entities/appointment.entity";
-import { APPOINTMENT_FEE_NPR } from "src/common/constants/appointment";
+import { APPOINTMENT_FEE_NPR } from "src/common/constants/constants";
 import { Response } from "express";
 import * as crypto from 'crypto'
 import axios, { Axios, AxiosResponse } from 'axios';
@@ -43,24 +43,31 @@ export class eSewaService {
             where: { id: appointmentId, user: { id: userId } },
             relations: ['payment', 'user'],
         })
-        if(!appointment) throw new Error('Appointment not found');
-        if(appointment.paymentStatus !== PaymentStatus.PENDING){
+        if (!appointment) throw new Error('Appointment not found');
+        if (appointment.paymentStatus !== PaymentStatus.PENDING) {
             throw new Error('Payment already processed');
         }
-        if(appointment.paymentMethod !== PaymentMethod.ESEWA || appointment.currency !== Currency.NPR){
+        if (appointment.paymentMethod !== PaymentMethod.ESEWA || appointment.currency !== Currency.NPR) {
             throw new Error('Appointment is not set for eSewa payment');
         }
 
+        const payment = await this.paymentRepo.findOne({
+            where: { appointment: { id: appointmentId, paymentMethod: PaymentMethod.ESEWA, currency: Currency.NPR } },
+        });
+        if (!payment) throw new BadRequestException('Payment record not found');
+
         const txn_uuid = await this.generateUniqueId();
         // create payment entity
-        const payment = this.paymentRepo.create({
-            amount: appointment.price,
-            currency: appointment.currency,
-            method: PaymentMethod.ESEWA,
-            status: PaymentStatus.PENDING,
-            transactionId: txn_uuid,
-            appointment,
-        });
+        // const payment = this.paymentRepo.create({
+        //     amount: appointment.price,
+        //     currency: appointment.currency,
+        //     method: PaymentMethod.ESEWA,
+        //     status: PaymentStatus.PENDING,
+        //     transactionId: txn_uuid,
+        //     // appointment,
+        // });
+        // await this.paymentRepo.save(payment);
+        payment.transactionId = txn_uuid;
         await this.paymentRepo.save(payment);
 
         const paymentData = {
@@ -84,7 +91,7 @@ export class eSewaService {
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             responseHandler: (response: AxiosResponse) => response.request?.res?.responseUrl,
         };
-        
+
         // Make payment request
         const paymentReq = await axios.post(String(paymentConfig.url), paymentConfig.data, {
             headers: paymentConfig.headers,
@@ -125,7 +132,7 @@ export class eSewaService {
         if (payment.status === PaymentStatus.PAID) {
             throw new Error('Payment already verified');
         }
-        if(appointment.status !== AppointmentStatus.PENDING){
+        if (appointment.status !== AppointmentStatus.PENDING) {
             throw new Error('Appointment is not in a valid state for payment verification');
         }
         //check status
@@ -156,7 +163,7 @@ export class eSewaService {
         });
 
         await this.appointmentService.generateAndSendAppointmentConfirmation(findAppointment?.user.id!, appointment.id)
-        
+
         return {
             appointmentId: appointment.id,
             paymentId: payment.id,

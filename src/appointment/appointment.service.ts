@@ -7,7 +7,7 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { User } from 'src/user/entity/user.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
 import { Currency, Payment, PaymentMethod, PaymentStatus } from 'src/payment/entities/payment.entity';
-import { APPOINTMENT_FEE, APPOINTMENT_FEE_NPR, MAX_DOCTOR_DAILY_APPOINTMENTS, MAX_USER_DAILY_APPOINTMENTS } from 'src/common/constants/appointment';
+import { APPOINTMENT_EXPIRY_MINUTES, APPOINTMENT_FEE, APPOINTMENT_FEE_NPR, MAX_DOCTOR_DAILY_APPOINTMENTS, MAX_USER_DAILY_APPOINTMENTS, PAYMENT_EXPIRY_MINUTES } from 'src/common/constants/constants';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as PDFDocument from 'pdfkit';
@@ -48,10 +48,10 @@ export class AppointmentService {
         status: Between(AppointmentStatus.PENDING, AppointmentStatus.BOOKED),
       },
     });
-
-    if (userAppointmentCount >= MAX_USER_DAILY_APPOINTMENTS) {
+    const max_limit = isProd() ? MAX_USER_DAILY_APPOINTMENTS : 10; // Relax limit in non-prod environments
+    if (userAppointmentCount >= max_limit) {
       throw new ForbiddenException(
-        `User has already booked the maximum limit of ${MAX_USER_DAILY_APPOINTMENTS} appointments for ${date}.`
+        `User has already booked the maximum limit of ${max_limit} appointments for ${date}.`
       );
     }
   }
@@ -114,6 +114,10 @@ export class AppointmentService {
       if (appointment.payment) {
         console.log(`Cancelling payment ${appointment.payment.id} for appointment ${appointmentId}`);
         appointment.payment.status = PaymentStatus.FAILED;
+        appointment.payment.checkoutUrl = null;
+        appointment.payment.transactionId = null;
+        appointment.payment.sessionId = null;
+
         await this.paymentRepo.save(appointment.payment);
       }
       await this.appointmentRepo.save(appointment);
@@ -121,8 +125,24 @@ export class AppointmentService {
     }
   }
 
+  async findOneAppointment(appointmentId: string): Promise<Appointment> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+      relations: ['payment', 'doctor', 'user'],
+    });
+    if (!appointment) throw new NotFoundException('Appointment not found');
+    return appointment;
+  }
 
-  //TODO: Add transaction management here and don't let one user book more than 3 times in a day
+  async findOnePayment(paymentId: string): Promise<Payment> {
+    const payment = await this.paymentRepo.findOne({
+      where: { id: paymentId },
+      relations: ['appointment', 'appointment.user', 'appointment.doctor'],
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+    return payment;
+  }
+
   // Create appointment
   async create(userId: string, dto: CreateAppointmentDto) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
@@ -208,7 +228,7 @@ export class AppointmentService {
     await this.appointmentQueue.add(
       'cancel-appointment',
       { appointmentId: savedAppointment.id },
-      { delay: isProd() ? 10 * 60 * 1000 : 1 * 60 * 1000 } // 10 minutes or 1 minute for testing
+      { delay: APPOINTMENT_EXPIRY_MINUTES * 60 * 1000 } 
     );
 
     return appointmentWithPayment;
@@ -230,7 +250,7 @@ export class AppointmentService {
     // Fetch appointments with pagination and sorting
     const [appointments, total] = await this.appointmentRepo.findAndCount({
       where: { user: { id: userId } }, // nested object filter
-      relations: ['payment', 'doctor'], // add doctor if you want
+      relations: ['payment', 'doctor', 'user'], // add doctor if you want
       order: { createdAt: 'DESC' }, // latest first
       skip,
       take: limit,
@@ -428,9 +448,10 @@ export class AppointmentService {
 
     // ---------- Appointment Details ----------
     doc.fontSize(14).fillColor('#000').text(`Appointment ID: ${appointment.id}`);
-    doc.text(`Date: ${appointment.date}`);
-    doc.text(`Time: ${appointment.time}`);
+    doc.text(`Appointment Date: ${appointment.date}`);
+    doc.text(`Appointment Time: ${appointment.time}`);
     doc.text(`Status: ${appointment.status}`);
+    doc.text(`Booked At: ${appointment.createdAt.toDateString()} at ${appointment.createdAt.toTimeString().split(' ')[0]} UTC`);
     doc.moveDown();
 
     // ---------- Patient Details ----------

@@ -7,7 +7,7 @@ import {
     UpdateDateColumn,
 } from 'typeorm';
 import { Appointment } from 'src/appointment/entities/appointment.entity';
-import { MAX_DOCTOR_DAILY_APPOINTMENTS } from 'src/common/constants/appointment';
+import { MAX_DOCTOR_DAILY_APPOINTMENTS } from 'src/common/constants/constants';
 
 export enum IdType {
     LICENSE = 'LICENSE',

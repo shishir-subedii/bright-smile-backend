@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString, IsEnum } from 'class-validator';
 import { IdType } from '../entities/doctor.entity';
-import { MAX_DOCTOR_DAILY_APPOINTMENTS } from 'src/common/constants/appointment';
+import { MAX_DOCTOR_DAILY_APPOINTMENTS } from 'src/common/constants/constants';
 
 export class CreateDoctorDto {
     @ApiProperty({ description: 'Doctor name', example: 'Dr. Aayush Sharma' })
