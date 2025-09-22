@@ -12,6 +12,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as PDFDocument from 'pdfkit';
 import { MailService } from 'src/common/mail/mail.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class AppointmentService {
@@ -27,6 +29,8 @@ export class AppointmentService {
 
     @InjectRepository(Payment)
     private paymentRepo: Repository<Payment>,
+
+    @InjectQueue('mail-queue') private readonly mailQueue: Queue,
 
     private readonly mailService: MailService
   ) { }
@@ -67,8 +71,8 @@ export class AppointmentService {
       });
       await this.paymentRepo.save(payment);
       appointment.payment = payment;
-      // await this.appointmentRepo.save(appointment);
-      // return await this.generateAndSendAppointmentConfirmation(user.id, appointment.id)
+      await this.appointmentRepo.save(appointment);
+      return await this.generateAndSendAppointmentConfirmation(user.id, appointment.id)
     }
 
     if (dto.pay === PaymentMethod.ESEWA) {
@@ -320,7 +324,7 @@ export class AppointmentService {
       .text('Payment Details', { underline: true })
       .moveDown(0.3);
     doc.fillColor('#000').text(`Method: ${appointment.paymentMethod}`);
-    doc.text(`Status: ${appointment.paymentStatus}`);
+    doc.text(`Status: ${appointment.payment?.status}`);
     doc.text(`Amount: ${appointment.price} ${appointment.currency}`);
     if (appointment.payment?.transactionId) {
       doc.text(`Transaction ID: ${appointment.payment.transactionId}`);
@@ -364,12 +368,20 @@ export class AppointmentService {
   }
 
   async generateAndSendAppointmentConfirmation(userId: string, appointmentId: string) {
-    try{
-    const {fileUrl, fileName, userName, userEmail} = await this.generateAppointmentConfirmation(userId, appointmentId);
-     await this.mailService.sendAppointmentConfirmation(userEmail, userName, fileName, fileUrl)
-    }catch(err){
-      throw new InternalServerErrorException("Internal Server Error")
-    }
+    const { fileUrl, fileName, userName, userEmail } =
+      await this.generateAppointmentConfirmation(userId, appointmentId);
+
+    // Add a job to the queue
+    await this.mailQueue.add('send-confirmation-email', {
+      userEmail,
+      userName,
+      fileName,
+      fileUrl,
+    });
+
+    // You can return a response immediately, email is handled asynchronously
+    return { message: 'Appointment confirmation is being sent.' };
   }
+
 }
     

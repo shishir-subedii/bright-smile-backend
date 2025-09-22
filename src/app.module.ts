@@ -13,6 +13,8 @@ import { AppointmentModule } from './appointment/appointment.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { PaymentModule } from './payment/payment.module';
 import { CoreModule } from './common/core/core.module';
+import { BullModule } from '@nestjs/bullmq';
+import { MailQueueModule } from './common/mail/queue/mail.queue.module';
 
 @Module({
   imports: [
@@ -29,6 +31,13 @@ import { CoreModule } from './common/core/core.module';
         ],
       }),
     }),
+    BullModule.forRoot({
+      connection: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
+    MailQueueModule,
     DatabaseModule,
     CoreModule,
     UsersModule,

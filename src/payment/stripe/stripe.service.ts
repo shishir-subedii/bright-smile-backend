@@ -26,9 +26,9 @@ export class StripeService {
     /**
      * Create checkout session for appointment
      */
-    async createCheckoutSession(appointmentId: string) {
+    async createCheckoutSession(userId: string, appointmentId: string) {
         const appointment = await this.appointmentRepo.findOne({
-            where: { id: appointmentId },
+            where: { id: appointmentId, user: {id: userId} },
             relations: ['payment', 'user'],
         });
 
