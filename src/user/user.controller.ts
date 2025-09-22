@@ -61,4 +61,27 @@ export class UserController {
             data: paginatedData,
         };
     }
+
+    //get all admins
+    @Roles(UserRole.SUPERADMIN)
+    @ApiOperation({ summary: 'Get all admins (Superadmin only)' })
+    @ApiResponse({
+        status: 200,
+        description: 'Admins retrieved successfully',
+    })
+    @ApiBearerAuth()
+    @ApiBadRequestResponse({
+        description: 'No admins found',
+    })
+    @Get('alladmins')
+    async getAllAdmins(@Pagination() pagination: PaginationParams, @Req() req: Request) {
+        const result = await this.userService.getAllAdmins(pagination.page, pagination.limit);
+        const { users, total } = result;
+        const paginatedData = paginateResponse(users, total, pagination.page, pagination.limit, req);
+        return {
+            success: true,
+            message: 'Admins retrieved successfully',
+            data: paginatedData,
+        };
+    }
 }

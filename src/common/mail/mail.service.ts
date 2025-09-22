@@ -1,7 +1,7 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
 
@@ -13,7 +13,7 @@ export class MailService {
         @Inject('MAIL_TRANSPORTER') private readonly transporter: nodemailer.Transporter,
         private readonly config: ConfigService,
     ) {
-        this.fromName = this.config.get<string>('MAIL_FROM_NAME') || 'DineDesk';
+        this.fromName = this.config.get<string>('MAIL_FROM_NAME') || "BrightSmile";
     }
 
     private compileTemplate(templateName: string, context: any): string {
@@ -73,6 +73,40 @@ export class MailService {
             to: email,
             subject: 'Reset your password - OTP',
             html,
+        });
+    }
+
+    /**
+     * Send appointment confirmation email with PDF attachment
+     */
+    async sendAppointmentConfirmation(email: string, name: string, fileName: string, fileUrl: string) {
+        const filePath = join(process.cwd(), 'uploads', 'appointments', fileName);
+
+        if (!existsSync(filePath)) {
+            throw new NotFoundException(`File not found: ${filePath}`);
+        }
+
+        const html = this.compileTemplate('appointment-confirmation', {
+            subject: 'Appointment Confirmation',
+            title: 'Your Appointment is Confirmed',
+            name,
+            message: 'Please find your appointment confirmation attached as PDF.',
+            fileUrl,
+            fromName: this.fromName,
+        });
+
+        await this.transporter.sendMail({
+            from: `"${this.fromName}" <${this.config.get<string>('MAIL_USER')}>`,
+            to: email,
+            subject: 'Appointment Confirmation',
+            html,
+            attachments: [
+                {
+                    filename: fileName,
+                    path: filePath, // absolute path to the file
+                    contentType: 'application/pdf',
+                },
+            ],
         });
     }
 }

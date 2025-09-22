@@ -4,6 +4,7 @@ import {
     Inject,
     Injectable,
     InternalServerErrorException,
+    NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -325,4 +326,19 @@ export class UserService {
         });
         return { users, total, page, limit };
     }
+
+    //get all admins with pagination
+    async getAllAdmins(page: number = 1, limit: number = 10): Promise<{ users: User[]; total: number; page: number; limit: number }> {
+        const [users, total] = await this.usersRepository.findAndCount({
+            skip: (page - 1) * limit,
+            take: limit,
+            order: { createdAt: 'DESC' },
+            where: { role: UserRole.ADMIN }
+        });
+        if (total === 0) {
+            throw new NotFoundException("No admins found")
+        }
+        return { users, total, page, limit };
+    }
+
 }
