@@ -7,6 +7,7 @@ import {
     UpdateDateColumn,
 } from 'typeorm';
 import { Appointment } from 'src/appointment/entities/appointment.entity';
+import { MAX_DOCTOR_DAILY_APPOINTMENTS } from 'src/common/constants/appointment';
 
 export enum IdType {
     LICENSE = 'LICENSE',
@@ -33,6 +34,9 @@ export class Doctor {
 
     @OneToMany(() => Appointment, (appointment) => appointment.doctor)
     appointments: Appointment[];
+
+    @Column({ type: 'int', default: MAX_DOCTOR_DAILY_APPOINTMENTS })
+    maxAppointmentsPerDay: number;
 
     @CreateDateColumn()
     createdAt: Date;

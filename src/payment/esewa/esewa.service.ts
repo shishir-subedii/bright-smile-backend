@@ -3,7 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Currency, Payment, PaymentMethod, PaymentStatus } from "../entities/payment.entity";
 import { Repository } from "typeorm";
 import { Appointment, AppointmentStatus } from "src/appointment/entities/appointment.entity";
-import { APPOINTMENT_FEE_NPR } from "src/common/constants/appointment-fee";
+import { APPOINTMENT_FEE_NPR } from "src/common/constants/appointment";
 import { Response } from "express";
 import * as crypto from 'crypto'
 import axios, { Axios, AxiosResponse } from 'axios';
@@ -98,8 +98,6 @@ export class eSewaService {
         payment.checkoutUrl = paymentUrl;
         payment.sessionId = appointmentId; // using appointmentId as sessionId for tracking
         await this.paymentRepo.save(payment);
-        console.log(appointment)
-        console.log(payment)
         return { paymentUrl };
     }
 
@@ -152,8 +150,12 @@ export class eSewaService {
         appointment.paymentStatus = PaymentStatus.PAID;
         appointment.paymentMethod = PaymentMethod.ESEWA;
         await this.appointmentRepo.save(appointment);
+        const findAppointment = await this.appointmentRepo.findOne({
+            where: { id: appointment.id },
+            relations: ['user', 'payment'],
+        });
 
-        await this.appointmentService.generateAndSendAppointmentConfirmation(appointment.user.id, appointment.id)
+        await this.appointmentService.generateAndSendAppointmentConfirmation(findAppointment?.user.id!, appointment.id)
         
         return {
             appointmentId: appointment.id,
@@ -164,15 +166,11 @@ export class eSewaService {
         }
     }
 
-
-
     async checkPaymentStatus(userId: string, appointmentId: string) {
-        console.log("APP ID", appointmentId)
         const appointment = await this.appointmentRepo.findOne({
             where: { id: appointmentId, user: { id: userId } },
             relations: ['payment', 'user'],
         });
-        console.log(appointment)
 
         if (!appointment) {
             throw new Error('Appointment not found');
@@ -207,7 +205,6 @@ export class eSewaService {
             });
 
             const data = response.data;
-            console.log('eSewa status response:', data);
 
             if (data.status === 'COMPLETE') {
                 payment.status = PaymentStatus.PAID;
@@ -239,7 +236,6 @@ export class eSewaService {
                 };
             }
         } catch (error) {
-            console.error('Error verifying payment at eSewa:', error.message);
             throw new Error('Could not verify payment with eSewa');
         }
     }

@@ -5,7 +5,7 @@ import { Gender } from '../entities/appointment.entity';
 import { PaymentMethod } from 'src/payment/entities/payment.entity';
 
 export class CreateAppointmentDto {
-  @ApiProperty({ example: '2025-09-20' })
+  @ApiProperty({ example: '2025-09-25' })
   @IsDateString()
   date: string;
 

@@ -1,19 +1,20 @@
 // src/appointment/appointment.service.ts
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { Appointment, AppointmentStatus } from './entities/appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { User } from 'src/user/entity/user.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
 import { Currency, Payment, PaymentMethod, PaymentStatus } from 'src/payment/entities/payment.entity';
-import { APPOINTMENT_FEE, APPOINTMENT_FEE_NPR } from 'src/common/constants/appointment-fee';
+import { APPOINTMENT_FEE, APPOINTMENT_FEE_NPR, MAX_DOCTOR_DAILY_APPOINTMENTS, MAX_USER_DAILY_APPOINTMENTS } from 'src/common/constants/appointment';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as PDFDocument from 'pdfkit';
 import { MailService } from 'src/common/mail/mail.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { isProd } from 'src/common/utils/checkMode';
 
 @Injectable()
 export class AppointmentService {
@@ -31,9 +32,95 @@ export class AppointmentService {
     private paymentRepo: Repository<Payment>,
 
     @InjectQueue('mail-queue') private readonly mailQueue: Queue,
+    @InjectQueue('appointment-queue') private readonly appointmentQueue: Queue,
 
     private readonly mailService: MailService
   ) { }
+
+
+  private async checkUserDailyLimit(userId: string, date: string): Promise<void> {
+    // Count existing *booked or pending* appointments for the user on the given date
+    const userAppointmentCount = await this.appointmentRepo.count({
+      where: {
+        user: { id: userId },
+        date: date,
+        // Consider only statuses that represent an active booking
+        status: Between(AppointmentStatus.PENDING, AppointmentStatus.BOOKED),
+      },
+    });
+
+    if (userAppointmentCount >= MAX_USER_DAILY_APPOINTMENTS) {
+      throw new ForbiddenException(
+        `User has already booked the maximum limit of ${MAX_USER_DAILY_APPOINTMENTS} appointments for ${date}.`
+      );
+    }
+  }
+
+  // --- New Helper Method for Doctor Daily Capacity ---
+  private async checkDoctorDailyCapacity(doctorId: string, date: string): Promise<void> {
+    // Count existing *booked* appointments for the doctor on the given date
+    const doctorAppointmentCount = await this.appointmentRepo.count({
+      where: {
+        doctor: { id: doctorId },
+        date: date,
+        // Only count BOOKED and PENDING appointments against the limit
+        status: Between(AppointmentStatus.PENDING, AppointmentStatus.BOOKED),
+      },
+    });
+
+    const findDoctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
+    if (!findDoctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    if (doctorAppointmentCount >= findDoctor.maxAppointmentsPerDay) {
+      throw new ForbiddenException(
+        `Doctor is fully booked with ${findDoctor.maxAppointmentsPerDay} appointments on ${date}.`
+      );
+    }
+  }
+
+  private checkBookingDateLimit(date: string): void {
+    const today = new Date();
+    // Set to start of the day for clean comparison
+    today.setHours(0, 0, 0, 0);
+
+    const bookingDate = new Date(date);
+    bookingDate.setHours(0, 0, 0, 0);
+
+    const oneWeekFromNow = new Date(today);
+    oneWeekFromNow.setDate(today.getDate() + 7);
+
+    // Appointment date must be today or later
+    if (bookingDate < today) {
+      throw new BadRequestException('Appointment date cannot be in the past.');
+    }
+
+    // Appointment date must be within the next 7 days (inclusive of the 7th day)
+    if (bookingDate > oneWeekFromNow) {
+      throw new ForbiddenException(`Appointments can only be booked up to 7 days in advance. Requested date: ${date}`);
+    }
+  }
+
+  async cancelIfPending(appointmentId: string) {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+      relations: ['payment'],
+    });
+
+    if (appointment && appointment.status === AppointmentStatus.PENDING) {
+      appointment.status = AppointmentStatus.CANCELLED;
+      appointment.paymentStatus = PaymentStatus.FAILED;
+      if (appointment.payment) {
+        console.log(`Cancelling payment ${appointment.payment.id} for appointment ${appointmentId}`);
+        appointment.payment.status = PaymentStatus.FAILED;
+        await this.paymentRepo.save(appointment.payment);
+      }
+      await this.appointmentRepo.save(appointment);
+      console.log(`Appointment ${appointmentId} auto-cancelled`);
+    }
+  }
+
 
   //TODO: Add transaction management here and don't let one user book more than 3 times in a day
   // Create appointment
@@ -47,6 +134,14 @@ export class AppointmentService {
     if (dto.age < 0) {
       throw new NotFoundException('Age cannot be negative');
     }
+
+    this.checkBookingDateLimit(dto.date);
+
+    // Daily User Booking Limit Check ---
+    await this.checkUserDailyLimit(userId, dto.date);
+
+    // 2. Daily Doctor Booking Limit Check (Capacity) ---
+    await this.checkDoctorDailyCapacity(dto.doctorId, dto.date);
 
     const appointment = this.appointmentRepo.create({
       user,
@@ -91,7 +186,32 @@ export class AppointmentService {
       appointment.payment = payment;
     }
 
-    return await this.appointmentRepo.save(appointment);
+    if(dto.pay === PaymentMethod.STRIPE){
+      appointment.paymentMethod = PaymentMethod.STRIPE;
+      appointment.paymentStatus = PaymentStatus.PENDING;
+      const payment = this.paymentRepo.create({
+        amount: APPOINTMENT_FEE,
+        method: PaymentMethod.STRIPE,
+        status: PaymentStatus.PENDING,
+        appointment,
+      });
+      await this.paymentRepo.save(payment);
+      appointment.payment = payment;
+    }
+
+    const savedAppointment = await this.appointmentRepo.save(appointment);
+
+    const appointmentWithPayment = await this.appointmentRepo.findOne({
+      where: { id: savedAppointment.id },
+      relations: ['payment', 'doctor', 'user'],
+    });
+    await this.appointmentQueue.add(
+      'cancel-appointment',
+      { appointmentId: savedAppointment.id },
+      { delay: isProd() ? 10 * 60 * 1000 : 1 * 60 * 1000 } // 10 minutes or 1 minute for testing
+    );
+
+    return appointmentWithPayment;
   }
 
   async getUserAppointments(
@@ -123,6 +243,30 @@ export class AppointmentService {
       limit,
     };
   }
+
+  //find specific types of appointments(eg cancelled, booked, etc) with pagination for user
+  async getUserAppointmentsByStatus(userId: string, status: AppointmentStatus, page = 1, limit = 10): Promise<{ appointments: Appointment[]; total: number; page: number; limit: number }> {
+    // Validate user existence
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    // Calculate offset
+    const skip = (page - 1) * limit;
+    // Fetch appointments with pagination and sorting
+    const [appointments, total] = await this.appointmentRepo.findAndCount({
+      where: { user: { id: userId }, status }, // nested object filter
+      relations: ['payment', 'doctor'], // add doctor if you want
+      order: { createdAt: 'DESC' }, // latest first
+      skip,
+      take: limit,
+    });
+    return {
+      appointments,
+      total,
+      page,
+      limit,
+    };
+  }
+
 
   //for user
   async getAppointmentById(userId: string, appointmentId: string): Promise<Appointment> {
@@ -174,6 +318,13 @@ export class AppointmentService {
     });
     if (!appointment) throw new NotFoundException('Appointment not found');
     appointment.status = AppointmentStatus.COMPLETED;
+    appointment.payment!.status = PaymentStatus.PAID;
+    // const findPayment = await this.paymentRepo.findOne({ where: { appointment: { id: appointmentId } } });
+    // if (findPayment) {
+    //   findPayment.status = PaymentStatus.PAID;
+    //   await this.paymentRepo.save(findPayment);
+    //   appointment.paymentStatus = PaymentStatus.PAID;
+    // }
     return await this.appointmentRepo.save(appointment);
   }
 

@@ -11,7 +11,7 @@ import {
 import { User } from 'src/user/entity/user.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
 import { Payment, PaymentStatus, PaymentMethod, Currency } from 'src/payment/entities/payment.entity';
-import { APPOINTMENT_FEE } from 'src/common/constants/appointment-fee';
+import { APPOINTMENT_FEE } from 'src/common/constants/appointment';
 
 export enum AppointmentStatus {
     PENDING = 'PENDING',
@@ -90,10 +90,8 @@ export class Appointment {
         default: PaymentMethod.CASH,
     })
     paymentMethod: PaymentMethod;
-
-    // relation: appointment has a payment
+    
     @OneToOne(() => Payment, (payment) => payment.appointment, { nullable: true })
-    @JoinColumn({ name: 'payment_id' })
     payment: Payment | null;
 
     @CreateDateColumn()

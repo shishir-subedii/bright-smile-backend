@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AppointmentService } from './appointment.service';
-import { StripeService } from 'src/payment/stripe/stripe.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { JwtAuthGuard } from 'src/common/auth/AuthGuard';
 import { Pagination, PaginationParams } from 'src/common/pagination/pagination.decorator';
@@ -57,6 +56,27 @@ export class AppointmentController {
     return {
       success: true,
       message: 'User appointments fetched successfully',
+      data: paginatedData,
+    };
+  }
+
+  //find specific types of appointments(eg cancelled, booked, etc) with pagination for user
+  @Get('user-status/:status')
+  @ApiOperation({ summary: 'Get user appointments by status' })
+  @ApiParam({ name: 'status', description: 'Appointment Status', enum: AppointmentStatus })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  async getUserAppointmentsByStatus(
+    @Param('status') status: AppointmentStatus,
+    @Pagination() pagination: PaginationParams,
+    @Req() req,
+  ) {
+    const result = await this.appointmentService.getUserAppointmentsByStatus(req.user.id, status, pagination.page, pagination.limit);
+    const { appointments, total } = result;
+    const paginatedData = paginateResponse(appointments, total, pagination.page, pagination.limit, req);
+    return {
+      success: true,
+      message: `User appointments with status ${status} fetched successfully`,
       data: paginatedData,
     };
   }

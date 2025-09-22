@@ -1,2 +1,0 @@
-export const APPOINTMENT_FEE = Number(process.env.APPOINTMENT_FEE ?? 20.00);
-export const APPOINTMENT_FEE_NPR = APPOINTMENT_FEE*120
