@@ -12,5 +12,16 @@ services:
     volumes:
       - pg-brightsmile-v:/var/lib/postgresql/data
 
+  # -------------------- New Valkey Service --------------------
+  valkey:
+    image: valkey/valkey:7  # Use an official Valkey image
+    container_name: valkey-brightsmile-container
+    restart: always
+    ports:
+      - '6379:6379'  # Map the default Valkey port (6379)
+    volumes:
+      - vk-brightsmile-v:/data # Volume for persistent Valkey data
+
 volumes:
   pg-brightsmile-v: 
+  vk-brightsmile-v: # Define the new volume for Valkey

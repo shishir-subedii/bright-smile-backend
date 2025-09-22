@@ -14,20 +14,24 @@ import {
     ExecutionContext,
     CallHandler,
     Res,
+    UseGuards,
 } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import Stripe from 'stripe';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
+import { JwtAuthGuard } from 'src/common/auth/AuthGuard';
 
 @ApiTags('Stripe Payments')
 @Controller('payments/stripe')
 export class StripeController {
     constructor(private readonly stripeService: StripeService) { }
 
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @Post('checkout/:appointmentId')
-    async checkout(@Param('appointmentId') appointmentId: string) {
-        const session = await this.stripeService.createCheckoutSession(appointmentId);
+    async checkout(@Param('appointmentId') appointmentId: string, @Req() req) {
+        const session = await this.stripeService.createCheckoutSession(req.user.id, appointmentId);
         return {
             success: true,
             message: 'Stripe checkout session created',

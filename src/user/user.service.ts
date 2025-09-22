@@ -17,6 +17,8 @@ import { MailService } from 'src/common/mail/mail.service';
 import { isProd } from 'src/common/utils/checkMode';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 import { UserRole } from 'src/common/enums/auth-roles.enum';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class UserService {
@@ -26,7 +28,8 @@ export class UserService {
         private mailservice: MailService,
         private dataSource: DataSource,
         @Inject(forwardRef(() => AuthService))
-        private authService: AuthService
+        private authService: AuthService,
+        @InjectQueue('mail-queue') private readonly mailQueue: Queue,
     ) { }
 
     async generateOtp(): Promise<string> {
@@ -90,11 +93,12 @@ export class UserService {
                     existingUser.otpExpiry = new Date(Date.now() + 10 * 60000);
                     await manager.save(User, existingUser);
 
-                    await this.mailservice.sendSignupOtp(
-                        existingUser.email,
-                        existingUser.name!,
-                        existingUser.otp,
-                    );
+                    await this.mailQueue.add('send-signup-otp', {
+                        userEmail: existingUser.email,
+                        userName: existingUser.name,
+                        otp: existingUser.otp,
+                    });
+
 
                     const newToken = await this.authService.genTokens(
                         existingUser.id,
@@ -138,11 +142,12 @@ export class UserService {
             );
 
             // 7. Send email ( if this fails, txn rolls back, no user is saved)
-            await this.mailservice.sendSignupOtp(
-                userData.email,
-                userData.name,
+            await this.mailQueue.add('send-signup-otp', {
+                userEmail: savedUser.email,
+                userName: savedUser.name,
                 otp,
-            );
+            });
+
 
             return { tempToken: accessToken, message: 'Signup OTP sent successfully. Please check your email.' };
         });
