@@ -5,6 +5,7 @@ import {
     OneToOne,
     CreateDateColumn,
     UpdateDateColumn,
+    JoinColumn,
 } from 'typeorm';
 import { Appointment } from 'src/appointment/entities/appointment.entity';
 
@@ -53,7 +54,9 @@ export class Payment {
     @OneToOne(() => Appointment, (appointment) => appointment.payment, {
         onDelete: 'CASCADE',
     })
+    @JoinColumn({ name: 'appointment_id' }) // Payment owns FK
     appointment: Appointment;
+
 
     @Column({ type: 'enum', enum: Currency, default: Currency.USD })
     currency: Currency;

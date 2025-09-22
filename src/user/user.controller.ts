@@ -73,7 +73,7 @@ export class UserController {
     @ApiBadRequestResponse({
         description: 'No admins found',
     })
-    @Get('alladmins')
+    @Get('all-admins')
     async getAllAdmins(@Pagination() pagination: PaginationParams, @Req() req: Request) {
         const result = await this.userService.getAllAdmins(pagination.page, pagination.limit);
         const { users, total } = result;
