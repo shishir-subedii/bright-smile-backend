@@ -15,6 +15,7 @@ import { PaymentModule } from './payment/payment.module';
 import { CoreModule } from './common/core/core.module';
 import { BullModule } from '@nestjs/bullmq';
 import { MailQueueModule } from './common/mail/queue/mail.queue.module';
+import { HolidayModule } from './holiday/holiday.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { MailQueueModule } from './common/mail/queue/mail.queue.module';
     AppointmentModule,
     DoctorModule,
     PaymentModule,
+    HolidayModule,
   ],
   providers: [
     {
