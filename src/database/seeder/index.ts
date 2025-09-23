@@ -4,6 +4,7 @@ import { SuperAdminSeeder } from './superadmin.seeder';
 import { DoctorSeeder } from './doctor.seeder';
 import { UserSeeder } from './user.seeder';
 import { AdminSeeder } from './admin.seeder';
+import { OfficeHoursSeeder } from './office-hours.seeder';
 
 const AppDataSource = new DataSource({
     type: 'postgres',
@@ -26,6 +27,7 @@ async function main() {
         await AdminSeeder(AppDataSource);
         await DoctorSeeder(AppDataSource);
         await UserSeeder(AppDataSource);
+        await OfficeHoursSeeder(AppDataSource);
 
         await AppDataSource.destroy();
         console.log('Disconnected from Postgres');

@@ -9,7 +9,7 @@ export class CreateAppointmentDto {
   @IsDateString()
   date: string;
 
-  @ApiProperty({ example: '14:30' })
+  @ApiProperty({ example: '14:30', description: 'Time in 24-hour format HH:mm' })
   @IsString()
   time: string;
 

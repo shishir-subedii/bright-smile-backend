@@ -157,10 +157,10 @@ export class AppointmentService {
 
     this.checkBookingDateLimit(dto.date);
 
-    // Daily User Booking Limit Check ---
+    // Daily User Booking Limit Check 
     await this.checkUserDailyLimit(userId, dto.date);
 
-    // 2. Daily Doctor Booking Limit Check (Capacity) ---
+    // 2. Daily Doctor Booking Limit Check (Capacity) 
     await this.checkDoctorDailyCapacity(dto.doctorId, dto.date);
 
     const appointment = this.appointmentRepo.create({
