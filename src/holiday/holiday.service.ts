@@ -1,11 +1,12 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { Holiday } from './entities/holiday.entity';
 import { OfficeHours } from './entities/office_hours.entity';
 import { DoctorAbsence } from './entities/doctor_absenses.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
 import doc from 'pdfkit';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 
 @Injectable()
@@ -22,6 +23,9 @@ export class HolidayService {
 
     @InjectRepository(Doctor)
     private readonly doctorRepo: Repository<Doctor>,
+
+    @InjectRepository(Appointment)
+    private readonly appointmentRepo: Repository<Appointment>,
   ) { }
 
   // -------------------
@@ -123,6 +127,10 @@ export class HolidayService {
       );
     }
 
+    if (time >= '14:00' && time <= '14:30') {
+      throw new ForbiddenException('Clinic closed for lunch break (2:00 PM - 2:30 PM)');
+    }
+
     // 3. Doctor absences
     const absences = await this.getDoctorAbsences(doctorId, date);
     for (const absence of absences) {
@@ -134,6 +142,30 @@ export class HolidayService {
           throw new ForbiddenException('Doctor unavailable during this time');
         }
       }
+    }
+
+    const [hour, minute] = time.split(':').map(Number);
+    const slotMinute = Math.floor(minute / 15) * 15;
+    const slotStart = `${hour.toString().padStart(2, '0')}:${slotMinute
+      .toString()
+      .padStart(2, '0')}`;
+    const slotEndMinute = slotMinute + 15;
+    const slotEnd = `${hour.toString().padStart(2, '0')}:${slotEndMinute
+      .toString()
+      .padStart(2, '0')}`;
+
+    const slotCount = await this.appointmentRepo.count({
+      where: {
+        doctor: { id: doctorId },
+        date,
+        time: Between(slotStart, slotEnd), // slot window
+      },
+    });
+
+    if (slotCount >= 1) {
+      throw new ForbiddenException(
+        `This 15-minute slot (${slotStart} - ${slotEnd}) is already booked`,
+      );
     }
 
     return true;
@@ -152,14 +184,18 @@ export class HolidayService {
 
     if (time < officeHours.openTime || time > officeHours.closeTime) return [];
 
+    // 2.5 Lunch break (14:00 - 14:30)
+    if (time >= '14:00' && time <= '14:30') return [];
+
     // 3. Check each doctor
     const doctors = await this.doctorRepo.find();
     const available: Doctor[] = [];
 
     for (const doctor of doctors) {
-      const absences = await this.getDoctorAbsences(doctor.id, date);
       let unavailable = false;
 
+      // 3.1 Doctor absences
+      const absences = await this.getDoctorAbsences(doctor.id, date);
       for (const absence of absences) {
         if (absence.isAbsent && !absence.isHalfDay) unavailable = true;
         if (absence.isHalfDay && absence.fromTime && absence.toTime) {
@@ -167,11 +203,39 @@ export class HolidayService {
         }
       }
 
+      // 3.2 Daily patient cap (30)
+      const dailyCount = await this.appointmentRepo.count({
+        where: { doctor: { id: doctor.id }, date },
+      });
+      if (dailyCount >= 30) unavailable = true;
+
+      // 3.3 Slot cap (1 per 15-min interval)
+      const [hour, minute] = time.split(':').map(Number);
+      const slotMinute = Math.floor(minute / 15) * 15;
+      const slotStart = `${hour.toString().padStart(2, '0')}:${slotMinute
+        .toString()
+        .padStart(2, '0')}`;
+      const slotEndMinute = slotMinute + 15;
+      const slotEnd = `${hour.toString().padStart(2, '0')}:${slotEndMinute
+        .toString()
+        .padStart(2, '0')}`;
+
+      const slotCount = await this.appointmentRepo.count({
+        where: {
+          doctor: { id: doctor.id },
+          date,
+          time: Between(slotStart, slotEnd),
+        },
+      });
+      if (slotCount >= 1) unavailable = true;
+
+      // ✅ Only add doctor if still available
       if (!unavailable) available.push(doctor);
     }
 
     return available;
   }
+
 
   // Add absence for all doctors (loop through each doctor)
   async addAbsenceForAll(date: string, fromTime?: string, toTime?: string, reason?: string) {
@@ -193,6 +257,99 @@ export class HolidayService {
 
     // 3. Save all absences at once
     return this.absenceRepo.save(absences);
+  }
+
+  async getAvailableDoctorsTime(date: string): Promise<
+    { doctor: Doctor; availableSlots: string[] }[]
+  > {
+    const result: { doctor: Doctor; availableSlots: string[] }[] = [];
+
+    // 1. Check holiday
+    const holiday = await this.isHoliday(date);
+    if (holiday) return []; // nobody available
+
+    // 2. Office hours
+    const dayOfWeek = new Date(date).getDay();
+    const officeHours = await this.officeHoursRepo.findOne({ where: { dayOfWeek } });
+    if (!officeHours || officeHours.isClosed) return [];
+
+    // Generate all 15-min slots between open and close
+    const slots: string[] = [];
+    let [hour, minute] = officeHours.openTime.split(':').map(Number);
+    const [closeHour, closeMinute] = officeHours.closeTime.split(':').map(Number);
+
+    while (hour < closeHour || (hour === closeHour && minute < closeMinute)) {
+      slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
+      minute += 15;
+      if (minute >= 60) {
+        hour++;
+        minute -= 60;
+      }
+    }
+
+    // 3. Loop through all doctors
+    const doctors = await this.doctorRepo.find();
+
+    for (const doctor of doctors) {
+      const availableSlots: string[] = [];
+
+      // 3.1 Check doctor daily cap
+      const dailyCount = await this.appointmentRepo.count({
+        where: { doctor: { id: doctor.id }, date },
+      });
+      if (dailyCount >= 30) {
+        result.push({ doctor, availableSlots: [] });
+        continue; // no slots left at all
+      }
+
+      // 3.2 Get absences
+      const absences = await this.getDoctorAbsences(doctor.id, date);
+
+      // 3.3 Filter slots
+      for (const slot of slots) {
+        let unavailable = false;
+
+        // Lunch break (14:00 - 14:30)
+        if (slot >= '14:00' && slot <= '14:30') {
+          unavailable = true;
+        }
+
+        // Absences
+        for (const absence of absences) {
+          if (absence.isAbsent && !absence.isHalfDay) unavailable = true;
+          if (absence.isHalfDay && absence.fromTime && absence.toTime) {
+            if (slot >= absence.fromTime && slot <= absence.toTime) unavailable = true;
+          }
+        }
+
+        // Slot already booked?
+        const [sHour, sMinute] = slot.split(':').map(Number);
+        let endHour = sHour;
+        let endMinute = sMinute + 15;
+        if (endMinute >= 60) {
+          endHour++;
+          endMinute -= 60;
+        }
+
+        const slotEnd = `${endHour.toString().padStart(2, '0')}:${endMinute
+          .toString()
+          .padStart(2, '0')}`;
+
+        const slotCount = await this.appointmentRepo.count({
+          where: {
+            doctor: { id: doctor.id },
+            date,
+            time: Between(slot, slotEnd),
+          },
+        });
+        if (slotCount >= 1) unavailable = true;
+
+        if (!unavailable) availableSlots.push(slot);
+      }
+      result.push({ doctor, availableSlots });
+    }
+
+    return result;
   }
 
 }
