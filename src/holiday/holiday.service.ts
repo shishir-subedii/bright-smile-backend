@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Holiday } from './entities/holiday.entity';
 import { OfficeHours } from './entities/office_hours.entity';
 import { DoctorAbsence } from './entities/doctor_absenses.entity';
+import { Doctor } from 'src/doctor/entities/doctor.entity';
+import doc from 'pdfkit';
 
 
 @Injectable()
@@ -17,6 +19,9 @@ export class HolidayService {
 
     @InjectRepository(DoctorAbsence)
     private readonly absenceRepo: Repository<DoctorAbsence>,
+
+    @InjectRepository(Doctor)
+    private readonly doctorRepo: Repository<Doctor>,
   ) { }
 
   // -------------------
@@ -133,4 +138,61 @@ export class HolidayService {
 
     return true;
   }
+
+  // Find available doctor(s)
+  async getAvailableDoctors(date: string, time: string): Promise<Doctor[]> {
+    // 1. Holidays
+    const holiday = await this.isHoliday(date);
+    if (holiday) return [];
+
+    // 2. Office hours
+    const dayOfWeek = new Date(date).getDay();
+    const officeHours = await this.officeHoursRepo.findOne({ where: { dayOfWeek } });
+    if (!officeHours || officeHours.isClosed) return [];
+
+    if (time < officeHours.openTime || time > officeHours.closeTime) return [];
+
+    // 3. Check each doctor
+    const doctors = await this.doctorRepo.find();
+    const available: Doctor[] = [];
+
+    for (const doctor of doctors) {
+      const absences = await this.getDoctorAbsences(doctor.id, date);
+      let unavailable = false;
+
+      for (const absence of absences) {
+        if (absence.isAbsent && !absence.isHalfDay) unavailable = true;
+        if (absence.isHalfDay && absence.fromTime && absence.toTime) {
+          if (time >= absence.fromTime && time <= absence.toTime) unavailable = true;
+        }
+      }
+
+      if (!unavailable) available.push(doctor);
+    }
+
+    return available;
+  }
+
+  // Add absence for all doctors (loop through each doctor)
+  async addAbsenceForAll(date: string, fromTime?: string, toTime?: string, reason?: string) {
+    // 1. Fetch all doctors
+    const doctors = await this.doctorRepo.find();
+
+    // 2. Loop and create absence for each
+    const absences = doctors.map((doctor) =>
+      this.absenceRepo.create({
+        doctorId: doctor.id,
+        date,
+        fromTime: fromTime ?? null,
+        toTime: toTime ?? null,
+        reason,
+        isAbsent: true,
+        isHalfDay: !!(fromTime && toTime),
+      }),
+    );
+
+    // 3. Save all absences at once
+    return this.absenceRepo.save(absences);
+  }
+
 }

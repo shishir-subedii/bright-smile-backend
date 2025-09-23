@@ -5,11 +5,13 @@ import { PaymentModule } from 'src/payment/payment.module';
 import { MailQueueModule } from 'src/common/mail/queue/mail.queue.module';
 import { AppointmentQueueModule } from './queue/appointment.queue.module';
 import { QueuesModule } from 'src/common/queue/queue.module';
+import { HolidayModule } from 'src/holiday/holiday.module';
 
 @Module({
   imports: [
     forwardRef(() => PaymentModule),
     MailQueueModule,
+    HolidayModule,
     AppointmentQueueModule,
     QueuesModule
   ],

@@ -15,6 +15,7 @@ import { MailService } from 'src/common/mail/mail.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { isProd } from 'src/common/utils/checkMode';
+import { HolidayService } from 'src/holiday/holiday.service';
 
 @Injectable()
 export class AppointmentService {
@@ -33,6 +34,8 @@ export class AppointmentService {
 
     @InjectQueue('mail-queue') private readonly mailQueue: Queue,
     @InjectQueue('appointment-queue') private readonly appointmentQueue: Queue,
+
+    private readonly holidayService: HolidayService,
 
     private readonly mailService: MailService
   ) { }
@@ -160,8 +163,10 @@ export class AppointmentService {
     // Daily User Booking Limit Check 
     await this.checkUserDailyLimit(userId, dto.date);
 
-    // 2. Daily Doctor Booking Limit Check (Capacity) 
+    // Daily Doctor Booking Limit Check (Capacity) 
     await this.checkDoctorDailyCapacity(dto.doctorId, dto.date);
+
+    await this.holidayService.validateAppointment(dto.doctorId, dto.date, dto.time);
 
     const appointment = this.appointmentRepo.create({
       user,
