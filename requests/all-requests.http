@@ -1,0 +1,497 @@
+# Bright Smile API HTTP Requests
+# Environment variables: baseUrl, bearerToken
+# Run in WebStorm to test all endpoints
+# Uses Superadmin, Admin, and User credentials from seeders
+# Excludes File Upload endpoints
+# Updated token extraction: response.body.data.accessToken
+
+### Users: Login as Superadmin to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "superadmin@brightsmile.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Users: Get All Admins (Superadmin only)
+GET {{baseUrl}}/user/all-admins
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Users: Login as Admin to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@brightsmile.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Users: Get All Users (Admin only)
+GET {{baseUrl}}/user/all
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Users: Login as User to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "shishirsubedi116@gmail.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Users: Get User Profile
+GET {{baseUrl}}/user
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Auth: Login as Superadmin to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "superadmin@brightsmile.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Auth: Assign Admin Role (Superadmin only)
+PATCH {{baseUrl}}/auth/assign-admin/shishirsubedi116@gmail.com
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Auth: Login as User to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "shishirsubedi116@gmail.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Auth: Google Auth
+GET {{baseUrl}}/auth/google
+
+###
+
+### Auth: Google Auth Callback
+GET {{baseUrl}}/auth/google/callback
+
+###
+
+### Auth: Register User
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "New User",
+  "email": "newuser@brightsmile.com",
+  "password": "securePassword123",
+  "confirmPassword": "securePassword123"
+}
+
+###
+
+### Auth: Verify OTP
+POST {{baseUrl}}/auth/verify-otp
+Content-Type: application/json
+
+{
+  "token": "mytoken1232435",
+  "otp": "123456"
+}
+
+###
+
+### Auth: Logout User
+GET {{baseUrl}}/auth/logout
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Auth: Logout All Sessions
+PATCH {{baseUrl}}/auth/logout-all
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "password": "securePassword123"
+}
+
+###
+
+### Auth: Change Password
+PATCH {{baseUrl}}/auth/change-password
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "oldPassword": "securePassword123",
+  "newPassword": "newPassword123",
+  "confirmNewPassword": "newPassword123"
+}
+
+###
+
+### Appointments: Login as Admin to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@brightsmile.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Appointments: Get All Appointments (Admin only)
+GET {{baseUrl}}/appointments/all/admin?limit=10&page=1
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Get Appointment by ID (Admin only)
+GET {{baseUrl}}/appointments/admin/:id
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Mark Appointment as Completed (Admin only)
+PATCH {{baseUrl}}/appointments/complete/:id
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Mark Appointment as Cancelled (Admin only)
+PATCH {{baseUrl}}/appointments/cancel/:id
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Get Appointments for Doctor (Admin only)
+GET {{baseUrl}}/appointments/doctor/81851f67-41f1-4213-bda4-5d8755c1c381?date=2025-09-25&limit=10&page=1
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Get Appointments by Status (Admin only)
+GET {{baseUrl}}/appointments/status/PENDING?limit=10&page=1
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Get Today's Appointments (Admin only)
+GET {{baseUrl}}/appointments/today?limit=10&page=1
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Login as User to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "shishirsubedi116@gmail.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Appointments: Create Appointment
+POST {{baseUrl}}/appointments
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "date": "2025-09-25",
+  "time": "14:30",
+  "age": 25,
+  "pay": "CASH",
+  "gender": "MALE",
+  "phoneNumber": "+9779812345678",
+  "doctorId": "81851f67-41f1-4213-bda4-5d8755c1c381"
+}
+
+###
+
+### Appointments: Get User Appointments
+GET {{baseUrl}}/appointments?limit=10&page=1
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Get User Appointments by Status
+GET {{baseUrl}}/appointments/user-status/PENDING?limit=10&page=1
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Appointments: Get Appointment by ID
+GET {{baseUrl}}/appointments/:id
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Stripe Payments: Login as User to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "shishirsubedi116@gmail.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Stripe Payments: Stripe Checkout
+POST {{baseUrl}}/payments/stripe/checkout/:appointmentId
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Stripe Payments: Stripe Status
+GET {{baseUrl}}/payments/stripe/status/:sessionId
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Stripe Payments: Stripe Success
+GET {{baseUrl}}/payments/stripe/success?session_id=:session_id
+
+###
+
+### Stripe Payments: Stripe Cancel
+GET {{baseUrl}}/payments/stripe/cancel
+
+###
+
+### Stripe Payments: Stripe Webhook
+POST {{baseUrl}}/payments/stripe/webhook
+stripe-signature: <signature>
+
+###
+
+### eSewa Payments: Login as User to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "shishirsubedi116@gmail.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### eSewa Payments: Initiate eSewa Payment
+POST {{baseUrl}}/payments/esewa/initiate/:appointmentId
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### eSewa Payments: Check eSewa Payment Status
+GET {{baseUrl}}/payments/esewa/status/:appointmentId
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### eSewa Payments: eSewa Success (GET)
+GET {{baseUrl}}/payments/esewa/success?data=:data
+
+###
+
+### eSewa Payments: eSewa Success (POST)
+POST {{baseUrl}}/payments/esewa/success
+
+###
+
+### eSewa Payments: eSewa Failure
+GET {{baseUrl}}/payments/esewa/failure
+
+###
+
+### Holidays & Availability: Login as Admin to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@brightsmile.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Holidays & Availability: Add Holiday
+POST {{baseUrl}}/availability/holidays
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "date": "2025-10-20",
+  "reason": "Dashain Festival",
+  "isRecurring": true
+}
+
+###
+
+### Holidays & Availability: Get Holidays
+GET {{baseUrl}}/availability/holidays
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Holidays & Availability: Remove Holiday
+DELETE {{baseUrl}}/availability/holidays/:id
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Holidays & Availability: Set Office Hours
+POST {{baseUrl}}/availability/office-hours
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "dayOfWeek": 1,
+  "openTime": "09:00",
+  "closeTime": "17:00",
+  "isClosed": false
+}
+
+###
+
+### Holidays & Availability: Get Office Hours
+GET {{baseUrl}}/availability/office-hours
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Holidays & Availability: Add Doctor Absence
+POST {{baseUrl}}/availability/doctor-absences
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "doctorId": "81851f67-41f1-4213-bda4-5d8755c1c381",
+  "date": "2025-09-25",
+  "fromTime": "10:00",
+  "toTime": "14:00",
+  "reason": "Medical conference"
+}
+
+###
+
+### Holidays & Availability: Remove Doctor Absence
+DELETE {{baseUrl}}/availability/doctor-absences/:id
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Holidays & Availability: Get Doctor Absences
+GET {{baseUrl}}/availability/doctor-absences/81851f67-41f1-4213-bda4-5d8755c1c381/2025-09-25
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Holidays & Availability: Get Available Doctors
+GET {{baseUrl}}/availability/doctors/2025-09-25/14:00
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Holidays & Availability: Apply Absence to All Doctors
+POST {{baseUrl}}/availability/doctor-absences/apply-to-all
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Doctors: Login as Admin to get bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@brightsmile.com",
+  "password": "securePassword123"
+}
+
+> {% client.global.set("bearerToken", response.body.data.accessToken); %}
+
+###
+
+### Doctors: Create Doctor
+POST {{baseUrl}}/doctors
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "name": "Dr. Aayush Sharma",
+  "specialization": "Orthodontist",
+  "maxAppointmentsPerDay": 10,
+  "idType": "LICENSE",
+  "idNumber": "LIC123456"
+}
+
+###
+
+### Doctors: Update Doctor
+PATCH {{baseUrl}}/doctors/81851f67-41f1-4213-bda4-5d8755c1c381
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "name": "Dr. John Doe Updated",
+  "specialization": "Dentist",
+  "maxAppointmentsPerDay": 15,
+  "idType": "LICENSE",
+  "idNumber": "LIC123456"
+}
+
+###
+
+### Doctors: Delete Doctor
+DELETE {{baseUrl}}/doctors/81851f67-41f1-4213-bda4-5d8755c1c381
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Doctors: Get All Doctors
+GET {{baseUrl}}/doctors
+
+###
+
+### Doctors: Get Doctor by ID
+GET {{baseUrl}}/doctors/81851f67-41f1-4213-bda4-5d8755c1c381

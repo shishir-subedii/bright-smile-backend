@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { HolidayService } from './holiday.service';
 import { CreateHolidayDto } from './dto/holiday.dto';
 import { CreateDoctorAbsenceDto } from './dto/doctor-absence.dto';
@@ -112,4 +112,22 @@ export class HolidayController {
     );
     return { success: true, message: 'Clinic-wide absence applied to all doctors', data };
   }
+
+  @Get('available-doctors-time')
+  @ApiOperation({ summary: 'Get available doctors with their time slots' })
+  @ApiQuery({
+    name: 'date',
+    type: String,
+    example: '2025-09-23',
+    description: 'The date (YYYY-MM-DD) for which to check doctor availability',
+  })
+  async getAvailableDoctorsTime(@Query('date') date: string) {
+    const data = await this.holidayService.getAvailableDoctorsTime(date);
+    return {
+      success: true,
+      message: `Available doctors with time slots for ${date}`,
+      data,
+    };
+  }
+
 }
