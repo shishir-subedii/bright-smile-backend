@@ -141,12 +141,13 @@ export class UserService {
             );
 
             // 7. Send email ( if this fails, txn rolls back, no user is saved)
-            await this.mailQueue.add('send-signup-otp', {
-                userEmail: savedUser.email,
-                userName: savedUser.name,
-                otp,
-            });
-
+            if(accessToken){
+                await this.mailQueue.add('send-signup-otp', {
+                    userEmail: savedUser.email,
+                    userName: savedUser.name,
+                    otp,
+                });   
+            }
 
             return { tempToken: accessToken, message: 'Signup OTP sent successfully. Please check your email.' };
         });
