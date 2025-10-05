@@ -148,6 +148,7 @@ export class AppointmentService {
 
   // Create appointment
   async create(userId: string, dto: CreateAppointmentDto) {
+    console.log("create appointment initiated");
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 

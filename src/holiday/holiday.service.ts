@@ -6,7 +6,7 @@ import { OfficeHours } from './entities/office_hours.entity';
 import { DoctorAbsence } from './entities/doctor_absenses.entity';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
 import doc from 'pdfkit';
-import { Appointment } from 'src/appointment/entities/appointment.entity';
+import { Appointment, AppointmentStatus } from 'src/appointment/entities/appointment.entity';
 
 
 @Injectable()
@@ -127,6 +127,7 @@ export class HolidayService {
       );
     }
 
+    // Lunch break
     if (time >= '14:00' && time <= '14:30') {
       throw new ForbiddenException('Clinic closed for lunch break (2:00 PM - 2:30 PM)');
     }
@@ -144,21 +145,39 @@ export class HolidayService {
       }
     }
 
-    const [hour, minute] = time.split(':').map(Number);
-    const slotMinute = Math.floor(minute / 15) * 15;
-    const slotStart = `${hour.toString().padStart(2, '0')}:${slotMinute
-      .toString()
-      .padStart(2, '0')}`;
-    const slotEndMinute = slotMinute + 15;
-    const slotEnd = `${hour.toString().padStart(2, '0')}:${slotEndMinute
-      .toString()
-      .padStart(2, '0')}`;
+    // --- Slot calculation helper ---
+    const getSlotWindow = (time: string): { slotStart: string; slotEnd: string } => {
+      const [hour, minute] = time.split(':').map(Number);
 
+      // Round down to nearest 15 min slot
+      const slotMinute = Math.floor(minute / 15) * 15;
+      const slotStart = `${hour.toString().padStart(2, '0')}:${slotMinute
+        .toString()
+        .padStart(2, '0')}`;
+
+      // Add 15 minutes safely
+      let endHour = hour;
+      let endMinute = slotMinute + 15;
+      if (endMinute >= 60) {
+        endHour += 1;
+        endMinute -= 60;
+      }
+      const slotEnd = `${endHour.toString().padStart(2, '0')}:${endMinute
+        .toString()
+        .padStart(2, '0')}`;
+
+      return { slotStart, slotEnd };
+    };
+
+    const { slotStart, slotEnd } = getSlotWindow(time);
+
+    // 4. Check if slot already booked
     const slotCount = await this.appointmentRepo.count({
       where: {
         doctor: { id: doctorId },
+        status: AppointmentStatus.BOOKED,
         date,
-        time: Between(slotStart, slotEnd), // slot window
+        time: Between(slotStart, slotEnd),
       },
     });
 
@@ -170,6 +189,7 @@ export class HolidayService {
 
     return true;
   }
+
 
   // Find available doctor(s)
   async getAvailableDoctors(date: string, time: string): Promise<Doctor[]> {
