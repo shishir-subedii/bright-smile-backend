@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiOperation, ApiResponse, ApiBadRequestResponse, ApiBody, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRegisterDto } from './dto/UserRegisterDto';
@@ -25,14 +25,14 @@ export class AuthController {
   // Step 2: Handle callback
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req) {
-    const response = await this.authService.googleLogin(req.user);
-    return {
-      success: true,
-      message: 'Google login successful',
-      data: response,
-    };
+  async googleAuthRedirect(@Req() req, @Res() res) {
+    const result = await this.authService.googleLogin(req.user);
+
+    // Redirect to Next.js API handler
+    const redirectUrl = `${process.env.FRONTEND_URL}/api/auth/google/callback?token=${result.accessToken}&role=${result.role}`;
+    return res.redirect(redirectUrl);
   }
+
 
   /*
   Register new user
