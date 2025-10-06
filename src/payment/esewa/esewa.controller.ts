@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { eSewaService } from "./esewa.service";
 import { JwtAuthGuard } from "src/common/auth/AuthGuard";
@@ -34,13 +34,9 @@ export class eSewaController {
 
     //success route for payment verification --> GET for development
     @Get('success')
-    async successGet(@Query('data') encoded: string) {
-        const result = await this.eSewaService.verifyPayment(encoded);
-        return {
-            success: true,
-            message: 'Payment verified successfully',
-            data: result,
-        };
+    async successGet(@Query('data') encoded: string, @Res() res: Response) {
+        await this.eSewaService.verifyPayment(encoded);
+        return res.redirect(`${process.env.FRONTEND_URL}/payment/success`);
     }
     /*
         @Get('success')
@@ -59,13 +55,9 @@ export class eSewaController {
 
     //success route for payment verification --> POST for production
     @Post('success')
-    async successPost(@Body('data') encoded: string) {
-        const result = await this.eSewaService.verifyPayment(encoded);
-        return {
-            success: true,
-            message: 'Payment verified successfully',
-            data: result,
-        };
+    async successPost(@Body('data') encoded: string, @Res() res: Response) {
+        await this.eSewaService.verifyPayment(encoded);
+        return res.redirect(`${process.env.FRONTEND_URL}/payment/success`);
     }
 
 
