@@ -566,6 +566,7 @@ export class AppointmentService {
   async generateAndSendAppointmentConfirmation(userId: string, appointmentId: string) {
     const { fileUrl, fileName, userName, userEmail } =
       await this.generateAppointmentConfirmation(userId, appointmentId);
+      console.log(`Generated appointment confirmation PDF for user ${userId}, appointment ${appointmentId}: ${fileUrl}`);
 
     this.mailService.sendAppointmentConfirmation(
       userEmail,

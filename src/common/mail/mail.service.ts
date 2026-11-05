@@ -80,6 +80,7 @@ export class MailService {
      * Send appointment confirmation email with PDF attachment
      */
     async sendAppointmentConfirmation(email: string, name: string, fileName: string, fileUrl: string) {
+        console.log(`Preparing to send appointment confirmation email to ${email} with attachment ${fileName}`);
         const filePath = join(process.cwd(), 'uploads', 'appointments', fileName);
 
         if (!existsSync(filePath)) {
@@ -94,6 +95,7 @@ export class MailService {
             fileUrl,
             fromName: this.fromName,
         });
+        console.log(`Sending email to ${email} with attachment ${filePath}`);
 
         await this.transporter.sendMail({
             from: `"${this.fromName}" <${this.config.get<string>('MAIL_USER')}>`,
@@ -108,5 +110,7 @@ export class MailService {
                 },
             ],
         });
+
+        console.log(`Appointment confirmation email sent to ${email} with attachment ${fileName}`);
     }
 }
