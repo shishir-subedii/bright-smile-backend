@@ -17,8 +17,6 @@ import { MailService } from 'src/common/mail/mail.service';
 import { isProd } from 'src/common/utils/checkMode';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 import { UserRole } from 'src/common/enums/auth-roles.enum';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 
 @Injectable()
 export class UserService {
@@ -29,7 +27,7 @@ export class UserService {
         private dataSource: DataSource,
         @Inject(forwardRef(() => AuthService))
         private authService: AuthService,
-        @InjectQueue('mail-queue') private readonly mailQueue: Queue,
+        // @InjectQueue('mail-queue') private readonly mailQueue: Queue,
     ) { }
 
     async generateOtp(): Promise<string> {
@@ -92,11 +90,11 @@ export class UserService {
                     existingUser.otpExpiry = new Date(Date.now() + 10 * 60000);
                     await manager.save(User, existingUser);
 
-                    await this.mailQueue.add('send-signup-otp', {
-                        userEmail: existingUser.email,
-                        userName: existingUser.name,
-                        otp: existingUser.otp,
-                    });
+                    this.mailservice.sendSignupOtp(
+                        existingUser.email,
+                        existingUser.name!,
+                        existingUser.otp,
+                    );
 
 
                     const newToken = await this.authService.genTokens(
@@ -141,12 +139,8 @@ export class UserService {
             );
 
             // 7. Send email ( if this fails, txn rolls back, no user is saved)
-            if(accessToken){
-                await this.mailQueue.add('send-signup-otp', {
-                    userEmail: savedUser.email,
-                    userName: savedUser.name,
-                    otp,
-                });   
+            if (accessToken) {
+                this.mailservice.sendSignupOtp(savedUser.email, savedUser.name!, otp);
             }
 
             return { tempToken: accessToken, message: 'Signup OTP sent successfully. Please check your email.' };
@@ -193,7 +187,7 @@ export class UserService {
         user.otpExpiry = new Date(Date.now() + 10 * 60000);
         await this.usersRepository.save(user);
 
-        await this.mailservice.sendForgotPasswordOtp(
+        this.mailservice.sendForgotPasswordOtp(
             user.email,
             user.name!,
             otp,

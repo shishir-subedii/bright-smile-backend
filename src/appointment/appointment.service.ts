@@ -12,10 +12,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as PDFDocument from 'pdfkit';
 import { MailService } from 'src/common/mail/mail.service';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { isProd } from 'src/common/utils/checkMode';
 import { HolidayService } from 'src/holiday/holiday.service';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class AppointmentService {
@@ -32,8 +31,8 @@ export class AppointmentService {
     @InjectRepository(Payment)
     private paymentRepo: Repository<Payment>,
 
-    @InjectQueue('mail-queue') private readonly mailQueue: Queue,
-    @InjectQueue('appointment-queue') private readonly appointmentQueue: Queue,
+    // @InjectQueue('mail-queue') private readonly mailQueue: Queue,
+    // @InjectQueue('appointment-queue') private readonly appointmentQueue: Queue,
 
     private readonly holidayService: HolidayService,
 
@@ -231,13 +230,32 @@ export class AppointmentService {
       where: { id: savedAppointment.id },
       relations: ['payment', 'doctor', 'user'],
     });
-    await this.appointmentQueue.add(
-      'cancel-appointment',
-      { appointmentId: savedAppointment.id },
-      { delay: APPOINTMENT_EXPIRY_MINUTES * 60 * 1000 } 
-    );
+    // await this.appointmentQueue.add(
+    //   'cancel-appointment',
+    //   { appointmentId: savedAppointment.id },
+    //   { delay: APPOINTMENT_EXPIRY_MINUTES * 60 * 1000 }
+    // );
 
     return appointmentWithPayment;
+  }
+
+  @Cron('* * * * *')
+  async cancelExpiredPendingAppointments(): Promise<void> {
+    const expiryTime = new Date(
+      Date.now() - APPOINTMENT_EXPIRY_MINUTES * 60 * 1000,
+    );
+    const pendingAppointments = await this.appointmentRepo.find({
+      where: {
+        status: AppointmentStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+      },
+    });
+
+    for (const appointment of pendingAppointments) {
+      if (appointment.createdAt <= expiryTime) {
+        await this.cancelIfPending(appointment.id);
+      }
+    }
   }
 
   async getUserAppointments(
@@ -549,13 +567,12 @@ export class AppointmentService {
     const { fileUrl, fileName, userName, userEmail } =
       await this.generateAppointmentConfirmation(userId, appointmentId);
 
-    // Add a job to the queue
-    await this.mailQueue.add('send-confirmation-email', {
+    this.mailService.sendAppointmentConfirmation(
       userEmail,
       userName,
       fileName,
       fileUrl,
-    });
+    );
 
     // You can return a response immediately, email is handled asynchronously
     return { message: 'Appointment confirmation is being sent.' };
