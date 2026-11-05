@@ -3,7 +3,10 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { AppointmentService } from '../appointment.service';
 
-@Processor('appointment-queue')
+@Processor('appointment-queue', {
+    concurrency: 1,
+    drainDelay: 30 
+})
 export class AppointmentQueueProcessor extends WorkerHost {
     constructor(private readonly appointmentService: AppointmentService) {
         super();

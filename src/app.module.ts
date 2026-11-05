@@ -32,10 +32,31 @@ import { HolidayModule } from './holiday/holiday.module';
         ],
       }),
     }),
-    BullModule.forRoot({
-      connection: {
-        host: 'localhost',
-        port: 6379,
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const isProduction =
+          configService.get<string>('APP_ENV') === 'production';
+
+        if (isProduction) {
+          return {
+            connection: {
+              host: configService.get<string>('REDIS_HOST'),
+              port: configService.get<number>('REDIS_PORT', 6379),
+              username: configService.get<string>('REDIS_USERNAME', 'default'),
+              password: configService.get<string>('REDIS_PASSWORD'),
+              tls: {},
+            },
+          };
+        }
+
+        return {
+          connection: {
+            host: 'localhost',
+            port: 6379,
+          },
+        };
       },
     }),
     MailQueueModule,
