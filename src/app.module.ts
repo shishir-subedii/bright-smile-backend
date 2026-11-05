@@ -13,9 +13,10 @@ import { AppointmentModule } from './appointment/appointment.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { PaymentModule } from './payment/payment.module';
 import { CoreModule } from './common/core/core.module';
-import { BullModule } from '@nestjs/bullmq';
-import { MailQueueModule } from './common/mail/queue/mail.queue.module';
+// import { BullModule } from '@nestjs/bullmq';
+// import { MailQueueModule } from './common/mail/queue/mail.queue.module';
 import { HolidayModule } from './holiday/holiday.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -32,34 +33,35 @@ import { HolidayModule } from './holiday/holiday.module';
         ],
       }),
     }),
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const isProduction =
-          configService.get<string>('APP_ENV') === 'production';
-
-        if (isProduction) {
-          return {
-            connection: {
-              host: configService.get<string>('REDIS_HOST'),
-              port: configService.get<number>('REDIS_PORT', 6379),
-              username: configService.get<string>('REDIS_USERNAME', 'default'),
-              password: configService.get<string>('REDIS_PASSWORD'),
-              tls: {},
-            },
-          };
-        }
-
-        return {
-          connection: {
-            host: 'localhost',
-            port: 6379,
-          },
-        };
-      },
-    }),
-    MailQueueModule,
+    ScheduleModule.forRoot(),
+    // BullModule.forRootAsync({
+    //   imports: [ConfigModule],
+    //   inject: [ConfigService],
+    //   useFactory: (configService: ConfigService) => {
+    //     const isProduction =
+    //       configService.get<string>('APP_ENV') === 'production';
+    //
+    //     if (isProduction) {
+    //       return {
+    //         connection: {
+    //           host: configService.get<string>('REDIS_HOST'),
+    //           port: configService.get<number>('REDIS_PORT', 6379),
+    //           username: configService.get<string>('REDIS_USERNAME', 'default'),
+    //           password: configService.get<string>('REDIS_PASSWORD'),
+    //           tls: {},
+    //         },
+    //       };
+    //     }
+    //
+    //     return {
+    //       connection: {
+    //         host: 'localhost',
+    //         port: 6379,
+    //       },
+    //     };
+    //   },
+    // }),
+    // MailQueueModule,
     DatabaseModule,
     CoreModule,
     UsersModule,

@@ -2,18 +2,18 @@ import { forwardRef, Module } from '@nestjs/common';
 import { AppointmentService } from './appointment.service';
 import { AppointmentController } from './appointment.controller';
 import { PaymentModule } from 'src/payment/payment.module';
-import { MailQueueModule } from 'src/common/mail/queue/mail.queue.module';
-import { AppointmentQueueModule } from './queue/appointment.queue.module';
-import { QueuesModule } from 'src/common/queue/queue.module';
+// import { MailQueueModule } from 'src/common/mail/queue/mail.queue.module';
+// import { AppointmentQueueModule } from './queue/appointment.queue.module';
+// import { QueuesModule } from 'src/common/queue/queue.module';
 import { HolidayModule } from 'src/holiday/holiday.module';
 
 @Module({
   imports: [
     forwardRef(() => PaymentModule),
-    MailQueueModule,
+    // MailQueueModule,
     HolidayModule,
-    AppointmentQueueModule,
-    QueuesModule
+    // AppointmentQueueModule,
+    // QueuesModule
   ],
   controllers: [AppointmentController],
   providers: [AppointmentService],
