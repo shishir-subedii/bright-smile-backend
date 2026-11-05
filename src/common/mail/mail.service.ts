@@ -97,19 +97,38 @@ export class MailService {
         });
         console.log(`Sending email to ${email} with attachment ${filePath}`);
 
-        await this.transporter.sendMail({
-            from: `"${this.fromName}" <${this.config.get<string>('MAIL_USER')}>`,
-            to: email,
-            subject: 'Appointment Confirmation',
-            html,
-            attachments: [
-                {
-                    filename: fileName,
-                    path: filePath, // absolute path to the file
-                    contentType: 'application/pdf',
-                },
-            ],
-        });
+        try {
+            console.log('Starting email transmission...');
+
+            const info = await this.transporter.sendMail({
+                from: `"${this.fromName}" <${this.config.get<string>('MAIL_USER')}>`,
+                to: email,
+                subject: 'Appointment Confirmation',
+                html,
+                attachments: [
+                    {
+                        filename: fileName,
+                        path: filePath,
+                        contentType: 'application/pdf',
+                    },
+                ],
+            });
+
+            console.log('EMAIL SENT SUCCESSFULLY');
+            console.log('Message ID:', info.messageId);
+            console.log('Accepted:', info.accepted);
+            console.log('Rejected:', info.rejected);
+            console.log('Response:', info.response);
+
+        } catch (error: any) {
+            console.error('EMAIL SENDING FAILED!');
+            console.error('Error message:', error.message);
+            console.error('Error code:', error.code);
+            console.error('Error command:', error.command);
+            console.error('Full error:', error);
+
+            throw error;
+        }
 
         console.log(`Appointment confirmation email sent to ${email} with attachment ${fileName}`);
     }
