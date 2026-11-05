@@ -6,23 +6,23 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { isProd } from './common/utils/checkMode';
-import { join } from 'path/win32';
+import { join } from 'path';
 import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.enableCors({
-    origin: ['http://127.0.0.1:5500', 'http://localhost:3000', 'https://brightsmile.vercel.app'], 
+    origin: ['http://127.0.0.1:5500', 'http://localhost:3000', 'https://brightsmile-web.vercel.app'], 
     credentials: true,
   })
 
   //remove console logs in production
   if (isProd()) {
-    Logger.overrideLogger(false);
-    console.log = () => { };
-    console.warn = () => { };
-    console.error = () => { };
-    console.debug = () => { };
+    // Logger.overrideLogger(false);
+    // console.log = () => { };
+    // console.warn = () => { };
+    // console.error = () => { };
+    // console.debug = () => { };
   }
   app.use('/payments/stripe/webhook', express.raw({ type: 'application/json' }));
 
@@ -34,6 +34,8 @@ async function bootstrap() {
       transform: true,      // auto-transform to DTO types
     }),
   );
+
+  app.enableShutdownHooks();
 
   // serve static files from uploads
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
